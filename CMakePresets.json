@@ -1,0 +1,220 @@
+{
+  "version": 5,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    { 
+      "name": "default",
+      "displayName": "Default Debug",
+      "description": "Default debug build",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/cmake-build",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ELK_HEADLESS_BUILD": "OFF"
+      }
+    },
+    {
+      "name": "default-with-tests",
+      "displayName": "Default Debug (with Tests)",
+      "description": "Debug build with tests enabled",
+      "inherits": "default",
+      "binaryDir": "${sourceDir}/cmake-build-with-tests",
+      "cacheVariables": {
+        "BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "default-with-examples",
+      "displayName": "Default Debug (with Tests & Examples)",
+      "description": "Debug build with tests and examples enabled",
+      "inherits": "default-with-tests",
+      "binaryDir": "${sourceDir}/cmake-build-with-examples",
+      "cacheVariables": {
+        "BUILD_EXAMPLES": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release Build",
+      "description": "Release build optimized for performance",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/cmake-release-build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "ELK_HEADLESS_BUILD": "OFF"
+      }
+    },
+    {
+      "name": "release-with-tests",
+      "displayName": "Release Build (with Tests)",
+      "description": "Release build with tests enabled",
+      "inherits": "release",
+      "binaryDir": "${sourceDir}/cmake-release-build-with-tests",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "release-with-debug-info",
+      "displayName": "Release with Debug Info",
+      "description": "Release build with debug symbols",
+      "inherits": "release",
+      "binaryDir": "${sourceDir}/cmake-release-with-debug-info-build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
+      "name": "ninja-debug",
+      "displayName": "Ninja Debug",
+      "description": "Debug build using Ninja with tests and examples",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/ninja-debug-build",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_COMPILE_WARNING_AS_ERROR": "ON",
+        "BUILD_TESTS": "ON",
+        "BUILD_EXAMPLES": "ON"
+      }
+    },
+    {
+      "name": "ninja-release",
+      "displayName": "Ninja Release",
+      "description": "Release build using Ninja",
+      "inherits": "ninja-debug",
+      "binaryDir": "${sourceDir}/ninja-release-build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "vs",
+      "displayName": "Visual Studio 2022",
+      "description": "Build using Visual Studio 2022",
+      "generator": "Visual Studio 17 2022",
+      "binaryDir": "${sourceDir}/vs-build",
+      "cacheVariables": {
+        "CMAKE_COMPILE_WARNING_AS_ERROR": "ON",
+        "BUILD_TESTS": "ON",
+        "BUILD_EXAMPLES": "ON"
+      }
+    },
+    {
+      "name": "xcode",
+      "displayName": "Xcode",
+      "description": "Build using Xcode generator",
+      "generator": "Xcode",
+      "binaryDir": "${sourceDir}/xcode-build"
+    },
+    {
+      "name": "elk-headless",
+      "displayName": "ELK Headless",
+      "description": "Headless build for ELK framework",
+      "inherits": "release",
+      "binaryDir": "${sourceDir}/cmake-build-elk",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "ELK_HEADLESS_BUILD": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default"
+    },
+    {
+      "name": "default-with-tests",
+      "configurePreset": "default-with-tests"
+    },
+    {
+      "name": "default-with-examples",
+      "configurePreset": "default-with-examples"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "configuration": "Release"
+    },
+    {
+      "name": "release-with-tests",
+      "configurePreset": "release-with-tests",
+      "configuration": "Release"
+    },
+    {
+      "name": "release-with-debug-info",
+      "configurePreset": "release-with-debug-info",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "ninja-debug",
+      "configurePreset": "ninja-debug"
+    },
+    {
+      "name": "ninja-release",
+      "configurePreset": "ninja-release"
+    },
+    {
+      "name": "vs",
+      "configurePreset": "vs"
+    },
+    {
+      "name": "xcode",
+      "configurePreset": "xcode"
+    },
+    {
+      "name": "elk-headless",
+      "configurePreset": "elk-headless"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "default-with-tests",
+      "configurePreset": "default-with-tests",
+      "output": { "outputOnFailure": true },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    },
+    {
+      "name": "default-with-examples",
+      "inherits": "default-with-tests",
+      "configurePreset": "default-with-tests"
+    },
+    {
+      "name": "release-with-tests",
+      "inherits": "default-with-tests",
+      "configurePreset": "release-with-tests"
+    },
+    {
+      "name": "ninja-debug",
+      "inherits": "default-with-tests",
+      "configurePreset": "ninja-debug"
+    },
+    {
+      "name": "ninja-release",
+      "inherits": "default-with-tests",
+      "configurePreset": "ninja-release"
+    },
+    {
+      "name": "vs",
+      "inherits": "default-with-tests",
+      "configurePreset": "vs",
+      "configuration": "Debug"
+    },
+    {
+      "name": "xcode",
+      "inherits": "default-with-tests",
+      "configurePreset": "xcode",
+      "configuration": "Debug"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+# --- CMake Build Folders & Cache ---
+/cmake-build/
+/cmake-build-debug/
+/cmake-build-release/
+/.cmake/
+
+# --- Dependency Managers (CPM / JUCE downloads) ---
+# If your project fetches dependencies via CMake automatically,
+# ignore the fetched source/build directories.
+/CPM_Modules/
+/_deps/
+
+# --- IDEs & Editors ---
+.idea/
+.vscode/
+*.swp
+*.DS_Store
+
+# --- OS-specific noise ---
+.DS_Store
