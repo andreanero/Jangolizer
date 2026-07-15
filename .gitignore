@@ -2,6 +2,13 @@
 # Removing the leading slashes allows builds in subdirectories to be ignored too
 cmake-build/
 cmake-build-*/
+cmake-release-build/
+cmake-release-build-*/
+cmake-release-with-debug-info-build/
+ninja-debug-build/
+ninja-release-build/
+vs-build/
+xcode-build/
 .cmake/
 # Ignore compiler-generated binaries and objects
 *.o
