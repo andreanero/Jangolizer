@@ -21,7 +21,7 @@ Dark, industrial look with neon green accents:
 
 ## ✨ Highlights
 
-- PolyBLEP anti‑aliased oscillator (Square, Triangle, Saw, Inverted Saw)
+- PolyBLEP anti‑aliased oscillator (Square, Triangle, Saw, Inverted Saw, Sine)
 - Wide LFO range (0.1 Hz – 400 Hz) for modulation and ring modulation
 - Dual modes: VCA (tremolo/ring) and VCF (LFO‑modulated bandpass)
 - RT‑safe DSP: no allocations in audio thread, parameter smoothing, stereo processing
@@ -72,7 +72,7 @@ cmake --build --preset elk-headless
 - DEPTH: 0.0 – 1.0 (default 0.7)
 - BIAS: -1.0 – 1.0 (default 0.0)
 - GAIN: 1.0 – 10.0 (default 1.0)
-- WAVEFORM: Square / Triangle / Saw / InvSaw
+- WAVEFORM: Square / Triangle / Saw / InvSaw / Sine
 - MODE: VCA / VCF
 
 ## License

@@ -69,7 +69,7 @@ JangolizerAudioProcessorEditor::JangolizerAudioProcessorEditor (JangolizerAudioP
     setupComboBox (waveformSelector, waveformLabel, "WAVEFORM");
     setupComboBox (modeSelector, modeLabel, "MODE");
 
-    waveformSelector.addItemList ({"Square", "Triangle", "Sawtooth", "Inv-Sawtooth"}, 1);
+    waveformSelector.addItemList ({"Square", "Triangle", "Sawtooth", "Inv-Sawtooth", "Sine"}, 1);
     modeSelector.addItemList ({"VCA (Tremolo)", "VCF (Filter)"}, 1);
 
     waveformSelector.addListener (this);
