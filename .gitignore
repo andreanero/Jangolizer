@@ -1,20 +1,34 @@
-# --- CMake Build Folders & Cache ---
-/cmake-build/
-/cmake-build-debug/
-/cmake-build-release/
-/.cmake/
+# --- CMake Build Folders, Cache & Artifacts ---
+# Removing the leading slashes allows builds in subdirectories to be ignored too
+cmake-build/
+cmake-build-*/
+.cmake/
+# Ignore compiler-generated binaries and objects
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
 
 # --- Dependency Managers (CPM / JUCE downloads) ---
-# If your project fetches dependencies via CMake automatically,
-# ignore the fetched source/build directories.
-/CPM_Modules/
-/_deps/
+CPM_Modules/
+_deps/
+
+# --- JUCE Specific & Compiled Formats ---
+JuceLibraryCode/
+*.vst3/
+*.component/
+*.app/
+*.vst/
+*.aax/
 
 # --- IDEs & Editors ---
 .idea/
 .vscode/
 *.swp
-*.DS_Store
 
 # --- OS-specific noise ---
 .DS_Store
+Thumbs.db
