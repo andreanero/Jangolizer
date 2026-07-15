@@ -39,3 +39,8 @@ JuceLibraryCode/
 # --- OS-specific noise ---
 .DS_Store
 Thumbs.db
+
+# --- Local credentials (never commit) ---
+.git_local_repo_credentials
+*.token
+*credentials*

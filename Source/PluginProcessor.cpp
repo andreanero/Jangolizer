@@ -146,7 +146,7 @@ bool JangolizerAudioProcessor::hasEditor() const
 #if !ELK_HEADLESS
 juce::AudioProcessorEditor* JangolizerAudioProcessor::createEditor()
 {
-    return new juce::GenericAudioProcessorEditor (*this); 
+    return new JangolizerAudioProcessorEditor (*this);
 }
 #endif
 

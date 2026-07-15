@@ -14,15 +14,14 @@ add_executable(JangolizerTests
   PolyBLEPOscillatorTests.cpp
   PluginProcessorTests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../Source/PluginProcessor.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../Source/PluginEditor.cpp
 )
 
 target_include_directories(JangolizerTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../Source)
 
-# ELK_HEADLESS=0: PluginProcessor::createEditor() is pure virtual in JUCE and must stay
-# declared/defined, so tests build the same desktop (non-headless) configuration.
-# PluginEditor.cpp itself is NOT compiled here: createEditor() only returns a
-# juce::GenericAudioProcessorEditor and never touches JangolizerAudioProcessorEditor,
-# so its implementation isn't needed to satisfy the header declarations at compile time.
+# ELK_HEADLESS=0: PluginProcessor::createEditor() constructs the real
+# JangolizerAudioProcessorEditor, so PluginEditor.cpp must be compiled and linked
+# in here too, even though no test exercises the editor directly.
 target_compile_definitions(JangolizerTests PRIVATE
   JUCE_WEB_BROWSER=0
   JUCE_USE_CURL=0
@@ -36,6 +35,7 @@ target_link_libraries(JangolizerTests PRIVATE
   juce::juce_audio_processors
   juce::juce_audio_basics
   juce::juce_dsp
+  juce::juce_gui_basics
   juce::juce_recommended_config_flags
 )
 

@@ -5,34 +5,19 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
 ![C++](https://img.shields.io/badge/C++-23-00599C.svg?logo=cplusplus)
 ![JUCE](https://img.shields.io/badge/JUCE-8.0.12-orange.svg)
-
-<!-- UI mockup: copy the attached image to assets/ui-mockup.png to see it in the README -->
-
-![UI Mockup](assets/ui-mockup.png)
+[![Buy Me a Coffee](https://img.shields.io/badge/PayPal-Buy%20me%20a%20coffee-00457C.svg?logo=paypal)](https://paypal.me/andreaveronese)
 
 Jangolizer is a compact, performance-minded audio effect inspired by circuit‑bent hardware. It provides an anti‑aliased LFO engine, soft saturation, and two processing modes (VCA/VCF). The desktop build includes a stylized GUI; the embedded build for Elk Audio OS is headless and parameter-only.
 
 </div>
 
-## UI (Design notes — based on the provided photo)
+## UI
 
-The project's visual identity uses the attached image as a base: a high‑contrast, desaturated background with vivid green accents (extracted from the subject's eyes). The UI proposal:
-
-- Full‑bleed background image (dark monochrome) at the plugin window's back.
-- Large, centered title overlay with bold, textured typography.
-- Controls arranged in three vertical zones:
-  - Left: LFO section (SPEED, WAVEFORM, DEPTH, BIAS)
-  - Center: Visualizer / waveform display and big MODE switch
-  - Right: Output & filter (GAIN, FILTER Q, PRESET)
-- Knobs and sliders: black/white style with neon green highlights for active values.
-- Compact responsive layout for small plugin windows; headless builds omit the UI entirely.
-
-To use the provided photo as the mockup image, copy the attached image into the repository:
-
-cp /path/to/attached/image.png assets/ui-mockup.png
-
-(Replace the path above with the attachment path you used.)
-
+Dark, industrial look with neon green accents:
+- Title banner and a depth-reactive "cat eyes" indicator up top.
+- Four rotary knobs — SPEED, DEPTH, BIAS, GAIN — in a row.
+- WAVEFORM and MODE selectors below the knobs.
+- Headless (Elk Audio OS) builds omit the UI entirely; only the parameters remain.
 
 ## ✨ Highlights
 
@@ -79,7 +64,6 @@ cmake --build --preset elk-headless
 
 - Source/: DSP and UI code (PluginProcessor, PluginEditor, PolyBLEP core)
 - cmake/: build helpers and CPM integration
-- assets/: UI images and resources (place ui-mockup.png here)
 - libs/: external dependencies (gitignored)
 
 ## Parameters
