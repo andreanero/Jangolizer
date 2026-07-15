@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2024 Jangolizer Contributors
+Copyright (c) 2026 Jangolizer Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -33,3 +33,12 @@ https://juce.com/juce-license
 
 If you intend to commercially distribute a plugin built with this code, you must obtain a commercial JUCE license 
 in addition to complying with the MIT license terms of this repository.
+
+---
+
+**Disclaimer:**
+
+This software is provided as-is, for free, with no guarantee it works. Use it at your own risk. If it crashes your
+DAW, corrupts a session, damages your hearing/speakers, or causes any other problem, that's on you, not on the
+authors or contributors. By using, building, or distributing this software, you accept full responsibility for
+any consequences of doing so.

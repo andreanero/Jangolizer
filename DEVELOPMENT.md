@@ -151,19 +151,27 @@ layout.add(std::make_unique<juce::AudioParameterChoice>(
 ));
 ```
 
-### Adding Unit Tests
+### Running Unit Tests
 
-1. Create test files in `test/` folder
-2. Link googletest in CMakeLists.txt:
-```cmake
-cpmaddpackage(
-  NAME googletest
-  GITHUB_REPOSITORY google/googletest
-  GIT_TAG v1.14.0
-)
-enable_testing()
-add_subdirectory(test)
+Tests live in `test/` (GoogleTest, fetched via CPM) and cover the DSP core
+(`PolyBLEPOscillator`) and the processor (`PluginProcessor`: parameter defaults,
+`processBlock()` output sanity in both VCA/VCF modes, state save/load round-trip).
+
+```bash
+cmake --preset default-with-tests
+cmake --build --preset default-with-tests
+ctest --preset default-with-tests
 ```
+
+The test target compiles `PluginProcessor.cpp` directly with `ELK_HEADLESS=0` (so
+`createEditor()` stays declared) but never links `PluginEditor.cpp` — `createEditor()`
+only returns a `juce::GenericAudioProcessorEditor`, so the custom editor code isn't
+needed to exercise the processor.
+
+### Adding a New Test
+
+1. Add a `.cpp` file under `test/` with `TEST(...)` / `TEST_P(...)` cases
+2. List it in `test/CMakeLists.txt`'s `add_executable(JangolizerTests ...)` sources
 
 ### Custom UI Design
 
@@ -215,7 +223,7 @@ In Sushi's config.json:
   "osc_server_port": 7890,
   "plugins": [
     {
-      "uid": "gristleizer",
+      "uid": "jangolizer",
       "path": "path/to/plugin.so",
       "parameters": [
         { "id": "SPEED", "gpio": 3, "min": 0.1, "max": 400 },
@@ -228,7 +236,7 @@ In Sushi's config.json:
 
 ### OSC Control Example
 ```bash
-oscsend localhost 7890 /parameter/gristleizer/SPEED f 50.0
+oscsend localhost 7890 /parameter/jangolizer/SPEED f 50.0
 ```
 
 ## Common Issues & Solutions

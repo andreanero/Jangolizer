@@ -10,7 +10,6 @@
       "name": "default",
       "displayName": "Default Debug",
       "description": "Default debug build",
-      "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/cmake-build",
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
@@ -42,7 +41,6 @@
       "name": "release",
       "displayName": "Release Build",
       "description": "Release build optimized for performance",
-      "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/cmake-release-build",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",

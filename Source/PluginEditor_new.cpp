@@ -48,7 +48,7 @@ void RotarySliderLook::drawRotarySlider (juce::Graphics& g, int x, int y, int wi
 
 //==============================================================================
 
-GristleizerAudioProcessorEditor::GristleizerAudioProcessorEditor (GristleizerAudioProcessor& p)
+JangolizerAudioProcessorEditor::JangolizerAudioProcessorEditor (JangolizerAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
     setLookAndFeel (&rotaryLook);
@@ -92,12 +92,12 @@ GristleizerAudioProcessorEditor::GristleizerAudioProcessorEditor (GristleizerAud
     setSize (800, 600);
 }
 
-GristleizerAudioProcessorEditor::~GristleizerAudioProcessorEditor()
+JangolizerAudioProcessorEditor::~JangolizerAudioProcessorEditor()
 {
     setLookAndFeel (nullptr);
 }
 
-void GristleizerAudioProcessorEditor::setupSlider (juce::Slider& slider, juce::Label& label, const juce::String& name)
+void JangolizerAudioProcessorEditor::setupSlider (juce::Slider& slider, juce::Label& label, const juce::String& name)
 {
     slider.setSliderStyle (juce::Slider::RotaryVerticalDrag);
     slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 50, 20);
@@ -113,7 +113,7 @@ void GristleizerAudioProcessorEditor::setupSlider (juce::Slider& slider, juce::L
     label.setColour (juce::Label::textColourId, juce::Colour (0xFF00FF00));
 }
 
-void GristleizerAudioProcessorEditor::setupComboBox (juce::ComboBox& box, juce::Label& label, const juce::String& name)
+void JangolizerAudioProcessorEditor::setupComboBox (juce::ComboBox& box, juce::Label& label, const juce::String& name)
 {
     box.setEditableText (false);
     box.setJustificationType (juce::Justification::centredLeft);
@@ -130,14 +130,14 @@ void GristleizerAudioProcessorEditor::setupComboBox (juce::ComboBox& box, juce::
     label.setColour (juce::Label::textColourId, juce::Colour (0xFF00FF00));
 }
 
-void GristleizerAudioProcessorEditor::paint (juce::Graphics& g)
+void JangolizerAudioProcessorEditor::paint (juce::Graphics& g)
 {
     drawIndustrialBackground (g);
 
     // Title
     g.setFont (juce::Font (28.0f, juce::Font::bold));
     g.setColour (juce::Colour (0xFF00FF00));
-    g.drawFittedText ("GRISTLEIZER", getLocalBounds().removeFromTop (60), juce::Justification::centredTop, 1);
+    g.drawFittedText ("JANGOLIZER", getLocalBounds().removeFromTop (60), juce::Justification::centredTop, 1);
 
     // Draw stylized cat eyes as visual feedback (depth indicator)
     auto depthNorm = (float) depthSlider.getValue() / depthSlider.getMaximum();
@@ -149,7 +149,7 @@ void GristleizerAudioProcessorEditor::paint (juce::Graphics& g)
     g.drawFittedText ("NO SUN. NO SYNTH.", getLocalBounds().removeFromBottom (20), juce::Justification::centredBottom, 1);
 }
 
-void GristleizerAudioProcessorEditor::drawIndustrialBackground (juce::Graphics& g)
+void JangolizerAudioProcessorEditor::drawIndustrialBackground (juce::Graphics& g)
 {
     // Main dark background
     g.fillAll (juce::Colour (0xFF0f0f0f));
@@ -172,7 +172,7 @@ void GristleizerAudioProcessorEditor::drawIndustrialBackground (juce::Graphics& 
     g.drawRect (getLocalBounds(), 2);
 }
 
-void GristleizerAudioProcessorEditor::drawCatEyes (juce::Graphics& g, int centerX, int centerY, float depth)
+void JangolizerAudioProcessorEditor::drawCatEyes (juce::Graphics& g, int centerX, int centerY, float depth)
 {
     auto eyeRadius = 6.0f + (depth * 4.0f);
     auto eyeSpacing = 15.0f;
@@ -205,7 +205,7 @@ void GristleizerAudioProcessorEditor::drawCatEyes (juce::Graphics& g, int center
     g.fillEllipse ((float) (centerX + eyeSpacing + pupilX - 1.5f), (float) (centerY + pupilY - 1.5f), 3.0f, 3.0f);
 }
 
-void GristleizerAudioProcessorEditor::resized()
+void JangolizerAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced (20);
     area.removeFromTop (70);
@@ -228,13 +228,13 @@ void GristleizerAudioProcessorEditor::resized()
     modeSelector.setBounds (rightCol.removeFromBottom (30));
 }
 
-void GristleizerAudioProcessorEditor::sliderValueChanged (juce::Slider* slider)
+void JangolizerAudioProcessorEditor::sliderValueChanged (juce::Slider* slider)
 {
     if (slider == &speedSlider || slider == &depthSlider)
         repaint();
 }
 
-void GristleizerAudioProcessorEditor::comboBoxChanged (juce::ComboBox* comboBox)
+void JangolizerAudioProcessorEditor::comboBoxChanged (juce::ComboBox* comboBox)
 {
     if (comboBox == &waveformSelector || comboBox == &modeSelector)
         repaint();

@@ -44,20 +44,33 @@ cp /path/to/attached/image.png assets/ui-mockup.png
 
 ## Quick Build
 
-Clone and build (desktop GUI):
+Clone the repo, then configure and build with CMake presets — no OS-specific script needed.
+
+### Linux / macOS
 
 ```bash
 git clone <repository-url>
 cd jangolizer
-mkdir cmake-build && cd cmake-build
 cmake --preset default
 cmake --build --preset default
 ```
 
-Headless (Elk Audio OS):
+Release build: `cmake --preset release && cmake --build --preset release`
+
+### Windows
+
+```bat
+git clone <repository-url>
+cd jangolizer
+cmake --preset default
+cmake --build --preset default --config Debug
+```
+
+Uses whatever Visual Studio version CMake detects on your machine. To pin a generator explicitly, use the `vs` preset (Visual Studio 2022) or `ninja-debug`/`ninja-release` (needs Ninja + MSVC on `PATH`, e.g. from a "Developer PowerShell for VS").
+
+### Headless (Elk Audio OS)
 
 ```bash
-mkdir cmake-build-elk && cd cmake-build-elk
 cmake --preset elk-headless
 cmake --build --preset elk-headless
 ```

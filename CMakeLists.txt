@@ -7,7 +7,7 @@ set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "" FORCE)
 
 project(JangolizerPlugin VERSION 1.0.0)
 
-# Opzione per decidere se compilare la versione Headless per Elk OS
+# Option to decide whether to build the Headless version for Elk OS
 option(ELK_HEADLESS_BUILD "Build the plugin without GUI for Elk Audio OS" OFF)
 
 if(PROJECT_IS_TOP_LEVEL)
@@ -100,3 +100,9 @@ target_link_libraries(JangolizerPlugin PRIVATE
 )
 
 target_include_directories(JangolizerPlugin PRIVATE Source)
+
+option(BUILD_TESTS "When on, downloads GoogleTest and builds the automated test suite" OFF)
+if(BUILD_TESTS)
+  enable_testing()
+  add_subdirectory(test)
+endif()
