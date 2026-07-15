@@ -29,7 +29,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout JangolizerAudioProcessor::cr
         "GAIN", "Input Drive", 1.0f, 10.0f, 1.0f));
 
     layout.add (std::make_unique<juce::AudioParameterChoice> (
-        "WAVE", "LFO Waveform", juce::StringArray { "Square", "Triangle", "Sawtooth", "InvSawtooth" }, 1));
+        "WAVE", "LFO Waveform", juce::StringArray { "Square", "Triangle", "Sawtooth", "InvSawtooth", "Sine" }, 1));
 
     layout.add (std::make_unique<juce::AudioParameterChoice> (
         "MODE", "Effect Mode", juce::StringArray { "VCA (Tremolo)", "VCF (Filter)" }, 0));
