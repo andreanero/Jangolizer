@@ -29,10 +29,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout JangolizerAudioProcessor::cr
         "GAIN", "Input Drive", 1.0f, 10.0f, 1.0f));
 
     layout.add (std::make_unique<juce::AudioParameterChoice> (
-        "WAVE", "LFO Waveform", juce::StringArray { "Square", "Triangle", "Sawtooth", "InvSawtooth" }, 1));
+        "WAVE", "LFO Waveform", juce::StringArray { "Square", "Triangle", "Sawtooth", "InvSawtooth", "Sine" }, 1));
 
     layout.add (std::make_unique<juce::AudioParameterChoice> (
         "MODE", "Effect Mode", juce::StringArray { "VCA (Tremolo)", "VCF (Filter)" }, 0));
+
+    layout.add (std::make_unique<juce::AudioParameterBool> (
+        "BYPASS", "Bypass", true));
 
     return layout;
 }
@@ -62,7 +65,10 @@ void JangolizerAudioProcessor::releaseResources() {}
 void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals noDenormals;
-    
+
+    if (*apvts.getRawParameterValue ("BYPASS") > 0.5f)
+        return;
+
     smoothedSpeed.setTargetValue (*apvts.getRawParameterValue ("SPEED"));
     smoothedDepth.setTargetValue (*apvts.getRawParameterValue ("DEPTH"));
     smoothedBias.setTargetValue  (*apvts.getRawParameterValue ("BIAS"));
@@ -132,6 +138,8 @@ void JangolizerAudioProcessor::setStateInformation (const void* data, int sizeIn
     std::unique_ptr<juce::XmlElement> xmlState (getXmlFromBinary (data, sizeInBytes));
     if (xmlState != nullptr && xmlState->hasTagName (apvts.state.getType()))
         apvts.replaceState (juce::ValueTree::fromXml (*xmlState));
+
+    apvts.getParameter ("BYPASS")->setValueNotifyingHost (1.0f);
 }
 
 bool JangolizerAudioProcessor::hasEditor() const
@@ -146,7 +154,7 @@ bool JangolizerAudioProcessor::hasEditor() const
 #if !ELK_HEADLESS
 juce::AudioProcessorEditor* JangolizerAudioProcessor::createEditor()
 {
-    return new juce::GenericAudioProcessorEditor (*this); 
+    return new JangolizerAudioProcessorEditor (*this);
 }
 #endif
 

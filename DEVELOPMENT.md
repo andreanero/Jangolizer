@@ -28,7 +28,7 @@ Parallel to audio path:
 
 ### 1. **PolyBLEPOscillator.h**
 - Anti-aliased waveform generator using Polynomial Band-Limited Step technique
-- Supports 4 waveforms: Square, Triangle, Sawtooth, Inverted Sawtooth
+- Supports 5 waveforms: Square, Triangle, Sawtooth, Inverted Sawtooth, Sine
 - **Key Methods:**
   - `setSampleRate(double)` – Configure sample rate for frequency calculations
   - `setFrequency(float)` – Set oscillation frequency (Hz)
@@ -64,10 +64,16 @@ The heart of the plugin. Inherits from `juce::AudioProcessor`.
 ### 3. **PluginEditor.h / PluginEditor.cpp** (Desktop Only)
 Conditional compilation: **Only compiled when `ELK_HEADLESS=0`**
 
-Currently uses JUCE's `GenericAudioProcessorEditor` for simplicity. For a custom UI:
-1. Extend from `juce::AudioProcessorEditor`
-2. Create custom `juce::Slider`, `juce::ComboBox` components
-3. Connect via `apvts.createAndAddParameter()` listeners
+Custom dark/industrial editor (`JangolizerAudioProcessorEditor`), not the generic
+JUCE editor:
+- `RotarySliderLook` — custom `LookAndFeel_V4` for the rotary knobs
+- `setupSlider()` / `setupComboBox()` — shared styling helpers for each control
+- Four rotary knobs (SPEED, DEPTH, BIAS, GAIN), WAVEFORM/MODE combo boxes, and a
+  BYPASS toggle, all bound to `apvts` via `SliderAttachment` / `ComboBoxAttachment`
+  / `ButtonAttachment`
+- `drawIndustrialBackground()` / `drawCatEyes()` — decorative painting, driven by
+  the DEPTH/SPEED slider values
+- Layout lives in `resized()`; colours/fonts are set per-control in the `setup*()` helpers
 
 ## Building & Testing
 
@@ -163,40 +169,26 @@ cmake --build --preset default-with-tests
 ctest --preset default-with-tests
 ```
 
-The test target compiles `PluginProcessor.cpp` directly with `ELK_HEADLESS=0` (so
-`createEditor()` stays declared) but never links `PluginEditor.cpp` — `createEditor()`
-only returns a `juce::GenericAudioProcessorEditor`, so the custom editor code isn't
-needed to exercise the processor.
+The test target compiles both `PluginProcessor.cpp` and `PluginEditor.cpp` with
+`ELK_HEADLESS=0`, since `createEditor()` constructs the real
+`JangolizerAudioProcessorEditor` — even though no test exercises the editor directly,
+it has to be compiled and linked for the test binary to build.
 
 ### Adding a New Test
 
 1. Add a `.cpp` file under `test/` with `TEST(...)` / `TEST_P(...)` cases
 2. List it in `test/CMakeLists.txt`'s `add_executable(JangolizerTests ...)` sources
 
-### Custom UI Design
+### Adding a New UI Control
 
-For a polished editor, replace the generic editor:
+To add a new control to the existing custom editor (`PluginEditor.h/.cpp`):
 
-1. Create `CustomEditor.h`:
-```cpp
-class CustomEditor : public juce::AudioProcessorEditor {
-    juce::Slider speedSlider;
-    juce::ComboBox modeSelect;
-    // ...
-};
-```
-
-2. Link sliders via `apvts` attachment:
-```cpp
-speedAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-    processor.apvts, "SPEED", speedSlider
-);
-```
-
-3. Override `PluginProcessor::createEditor()`:
-```cpp
-return new CustomEditor(*this);
-```
+1. Declare the component (and label, if any) in `PluginEditor.h`
+2. Style it via `setupSlider()` / `setupComboBox()`, or add a new helper for other
+   component types (see `bypassButton` setup for a `ToggleButton` example)
+3. Bind it to `apvts` with the matching attachment type
+   (`SliderAttachment` / `ComboBoxAttachment` / `ButtonAttachment`)
+4. Position it in `resized()`
 
 ## Performance Considerations
 

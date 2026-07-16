@@ -6,7 +6,7 @@
 class PolyBLEPOscillator 
 {
 public:
-    enum Waveform { Square, Triangle, Sawtooth, InvSawtooth };
+    enum Waveform { Square, Triangle, Sawtooth, InvSawtooth, Sine };
 
     PolyBLEPOscillator() = default;
 
@@ -51,6 +51,10 @@ public:
                 output -= polyBlep(dt, std::fmod(phase + 0.5f, 1.0f));
                 integratedOutput = 0.99f * integratedOutput + (output * dt * 4.0f);
                 return juce::jlimit(-1.0f, 1.0f, integratedOutput);
+
+            case Sine:
+                output = std::sin(phase * juce::MathConstants<float>::twoPi);
+                break;
         }
         return output;
     }

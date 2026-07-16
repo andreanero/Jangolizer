@@ -20,7 +20,8 @@ private:
 
 class JangolizerAudioProcessorEditor : public juce::AudioProcessorEditor,
                                          public juce::Slider::Listener,
-                                         public juce::ComboBox::Listener
+                                         public juce::ComboBox::Listener,
+                                         public juce::Button::Listener
 {
 public:
     explicit JangolizerAudioProcessorEditor (JangolizerAudioProcessor&);
@@ -31,6 +32,7 @@ public:
 
     void sliderValueChanged (juce::Slider* slider) override;
     void comboBoxChanged (juce::ComboBox* comboBox) override;
+    void buttonClicked (juce::Button* button) override;
 
 private:
     JangolizerAudioProcessor& audioProcessor;
@@ -43,16 +45,15 @@ private:
     juce::ComboBox waveformSelector, modeSelector;
     juce::Label waveformLabel, modeLabel;
 
+    juce::ToggleButton bypassButton;
+
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> speedAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> depthAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> biasAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> gainAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> waveformAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> modeAttachment;
-
-    std::unique_ptr<juce::GenericAudioProcessorEditor> genericEditor;
-    
-    juce::Image backgroundImage;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
 
     void drawCatEyes (juce::Graphics& g, int centerX, int centerY, float depth);
     void drawIndustrialBackground (juce::Graphics& g);

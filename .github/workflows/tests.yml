@@ -1,0 +1,51 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install JUCE Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ninja-build \
+            libasound2-dev \
+            libx11-dev \
+            libxcomposite-dev \
+            libxcursor-dev \
+            libxext-dev \
+            libxinerama-dev \
+            libxrandr-dev \
+            libxrender-dev \
+            libglu1-mesa-dev \
+            mesa-common-dev \
+            libfreetype6-dev \
+            libfontconfig1-dev \
+            libcurl4-openssl-dev \
+            libwebkit2gtk-4.1-dev
+
+      - name: Cache CPM sources
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/CPM
+          key: cpm-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'test/CMakeLists.txt') }}
+
+      - name: Configure
+        env:
+          CPM_SOURCE_CACHE: ~/.cache/CPM
+        run: cmake --preset ninja-debug
+
+      - name: Build tests
+        run: cmake --build --preset ninja-debug --target JangolizerTests
+
+      - name: Run tests
+        run: ctest --preset ninja-debug
