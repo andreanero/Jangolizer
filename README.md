@@ -17,6 +17,7 @@ Dark, industrial look with neon green accents:
 - Title banner and a depth-reactive "cat eyes" indicator up top.
 - Four rotary knobs — SPEED, DEPTH, BIAS, GAIN — in a row.
 - WAVEFORM and MODE selectors below the knobs.
+- BYPASS toggle below the selectors — on by default every time the plugin loads.
 - Headless (Elk Audio OS) builds omit the UI entirely; only the parameters remain.
 
 ## ✨ Highlights
@@ -74,6 +75,7 @@ cmake --build --preset elk-headless
 - GAIN: 1.0 – 10.0 (default 1.0)
 - WAVEFORM: Square / Triangle / Saw / InvSaw / Sine
 - MODE: VCA / VCF
+- BYPASS: on / off (default on, reset to on every load — not restored from saved state)
 
 ## License
 

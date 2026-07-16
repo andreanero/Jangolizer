@@ -75,6 +75,14 @@ JangolizerAudioProcessorEditor::JangolizerAudioProcessorEditor (JangolizerAudioP
     waveformSelector.addListener (this);
     modeSelector.addListener (this);
 
+    // Bypass toggle
+    bypassButton.setButtonText ("BYPASS");
+    bypassButton.setColour (juce::ToggleButton::textColourId, juce::Colour (0xFF00FF00));
+    bypassButton.setColour (juce::ToggleButton::tickColourId, juce::Colour (0xFF00FF00));
+    bypassButton.setColour (juce::ToggleButton::tickDisabledColourId, juce::Colour (0xFF444444));
+    bypassButton.addListener (this);
+    addAndMakeVisible (bypassButton);
+
     // Create attachments
     speedAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
         audioProcessor.apvts, "SPEED", speedSlider);
@@ -88,6 +96,8 @@ JangolizerAudioProcessorEditor::JangolizerAudioProcessorEditor (JangolizerAudioP
         audioProcessor.apvts, "WAVE", waveformSelector);
     modeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
         audioProcessor.apvts, "MODE", modeSelector);
+    bypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
+        audioProcessor.apvts, "BYPASS", bypassButton);
 
     setSize (800, 600);
 }
@@ -109,7 +119,7 @@ void JangolizerAudioProcessorEditor::setupSlider (juce::Slider& slider, juce::La
     label.setText (name, juce::dontSendNotification);
     label.setJustificationType (juce::Justification::centred);
     label.attachToComponent (&slider, false);
-    label.setFont (juce::Font (11.0f, juce::Font::bold));
+    label.setFont (juce::Font (juce::FontOptions (11.0f, juce::Font::bold)));
     label.setColour (juce::Label::textColourId, juce::Colour (0xFF00FF00));
 }
 
@@ -126,7 +136,7 @@ void JangolizerAudioProcessorEditor::setupComboBox (juce::ComboBox& box, juce::L
     label.setText (name, juce::dontSendNotification);
     label.setJustificationType (juce::Justification::centredLeft);
     label.attachToComponent (&box, true);
-    label.setFont (juce::Font (11.0f, juce::Font::bold));
+    label.setFont (juce::Font (juce::FontOptions (11.0f, juce::Font::bold)));
     label.setColour (juce::Label::textColourId, juce::Colour (0xFF00FF00));
 }
 
@@ -135,7 +145,7 @@ void JangolizerAudioProcessorEditor::paint (juce::Graphics& g)
     drawIndustrialBackground (g);
 
     // Title
-    g.setFont (juce::Font (28.0f, juce::Font::bold));
+    g.setFont (juce::Font (juce::FontOptions (28.0f, juce::Font::bold)));
     g.setColour (juce::Colour (0xFF00FF00));
     g.drawFittedText ("JANGOLIZER", getLocalBounds().removeFromTop (60), juce::Justification::centredTop, 1);
 
@@ -144,7 +154,7 @@ void JangolizerAudioProcessorEditor::paint (juce::Graphics& g)
     drawCatEyes (g, getWidth() / 2, 35, depthNorm);
 
     // Bottom info
-    g.setFont (juce::Font (10.0f, juce::Font::italic));
+    g.setFont (juce::Font (juce::FontOptions (10.0f, juce::Font::italic)));
     g.setColour (juce::Colour (0xFF00AA00));
     g.drawFittedText ("NO SUN. NO SYNTH.", getLocalBounds().removeFromBottom (20), juce::Justification::centredBottom, 1);
 }
@@ -226,6 +236,10 @@ void JangolizerAudioProcessorEditor::resized()
 
     waveformSelector.setBounds (leftCol.removeFromBottom (30));
     modeSelector.setBounds (rightCol.removeFromBottom (30));
+
+    // Bottom - Bypass toggle
+    auto bypassRow = area.removeFromTop (30);
+    bypassButton.setBounds (bypassRow.withSizeKeepingCentre (100, 30));
 }
 
 void JangolizerAudioProcessorEditor::sliderValueChanged (juce::Slider* slider)
@@ -238,4 +252,8 @@ void JangolizerAudioProcessorEditor::comboBoxChanged (juce::ComboBox* comboBox)
 {
     if (comboBox == &waveformSelector || comboBox == &modeSelector)
         repaint();
+}
+
+void JangolizerAudioProcessorEditor::buttonClicked (juce::Button*)
+{
 }
