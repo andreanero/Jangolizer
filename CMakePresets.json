@@ -94,9 +94,9 @@
     },
     {
       "name": "vs",
-      "displayName": "Visual Studio 2022",
-      "description": "Build using Visual Studio 2022",
-      "generator": "Visual Studio 17 2022",
+      "displayName": "Visual Studio 2026",
+      "description": "Build using Visual Studio 2026",
+      "generator": "Visual Studio 18 2026",
       "binaryDir": "${sourceDir}/vs-build",
       "cacheVariables": {
         "CMAKE_COMPILE_WARNING_AS_ERROR": "ON",
