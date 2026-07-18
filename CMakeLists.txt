@@ -65,6 +65,8 @@ juce_add_plugin(JangolizerPlugin
     PRODUCT_NAME "Jangolizer"
     LV2URI "https://jangolizer.audio/jangolizer"
     VST3_AUTO_MANIFEST FALSE
+    MICROPHONE_PERMISSION_ENABLED TRUE
+    MICROPHONE_PERMISSION_TEXT "Jangolizer needs microphone access to process live audio input."
 )
 
 target_sources(JangolizerPlugin PRIVATE ${SharedSources})
