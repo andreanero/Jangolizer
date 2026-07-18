@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  test-linux:
     runs-on: ubuntu-latest
 
     steps:
@@ -42,6 +42,33 @@ jobs:
       - name: Configure
         env:
           CPM_SOURCE_CACHE: ~/.cache/CPM
+        run: cmake --preset ninja-debug
+
+      - name: Build tests
+        run: cmake --build --preset ninja-debug --target JangolizerTests
+
+      - name: Run tests
+        run: ctest --preset ninja-debug
+
+  test-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Ninja
+        run: brew install ninja
+
+      - name: Cache CPM sources
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/CPM
+          key: cpm-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'test/CMakeLists.txt') }}
+
+      - name: Configure
+        env:
+          CPM_SOURCE_CACHE: ~/Library/Caches/CPM
         run: cmake --preset ninja-debug
 
       - name: Build tests
