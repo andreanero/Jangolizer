@@ -27,7 +27,11 @@ TEST (PluginProcessorTest, ParameterLayoutHasExpectedDefaults)
 
     EXPECT_FLOAT_EQ (*processor.apvts.getRawParameterValue ("SPEED"), 5.0f);
     EXPECT_FLOAT_EQ (*processor.apvts.getRawParameterValue ("DEPTH"), 0.7f);
-    EXPECT_FLOAT_EQ (*processor.apvts.getRawParameterValue ("BIAS"), 0.0f);
+    // BIAS's default snaps through NormalisableRange's 0.01 interval, which
+    // isn't exactly representable in float; the resulting rounding error
+    // differs slightly across platforms/compilers (e.g. FMA contraction on
+    // Apple Silicon), so an exact equality check is too strict here.
+    EXPECT_NEAR (*processor.apvts.getRawParameterValue ("BIAS"), 0.0f, 1.0e-6f);
     EXPECT_FLOAT_EQ (*processor.apvts.getRawParameterValue ("GAIN"), 1.0f);
     EXPECT_EQ (static_cast<int> (*processor.apvts.getRawParameterValue ("WAVE")), 1); // Triangle
     EXPECT_EQ (static_cast<int> (*processor.apvts.getRawParameterValue ("MODE")), 0); // VCA

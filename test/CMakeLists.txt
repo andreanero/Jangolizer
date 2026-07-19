@@ -10,6 +10,15 @@ cpmaddpackage(
     "gtest_force_shared_crt ON"
 )
 
+# gtest 1.14.0 triggers -Wcharacter-conversion (char8_t -> char32_t) on newer
+# Apple clang; upstream fixed post-1.14.0. Don't let our -Werror settings
+# fail the build over a warning in vendored code we don't control.
+foreach(gtest_target gtest gtest_main gmock gmock_main)
+  if(TARGET ${gtest_target})
+    set_target_properties(${gtest_target} PROPERTIES COMPILE_WARNING_AS_ERROR OFF)
+  endif()
+endforeach()
+
 add_executable(JangolizerTests
   PolyBLEPOscillatorTests.cpp
   PluginProcessorTests.cpp
