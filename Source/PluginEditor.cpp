@@ -12,7 +12,7 @@ RotarySliderLook::RotarySliderLook()
 
 void RotarySliderLook::drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height,
                                          float sliderPosProportional, float rotaryStartAngle,
-                                         float rotaryEndAngle, juce::Slider& slider)
+                                         float rotaryEndAngle, juce::Slider&)
 {
     auto radius = (float) juce::jmin (width / 2, height / 2) - 2.0f;
     auto centreX = (float) x + (float) width * 0.5f;
@@ -99,7 +99,7 @@ JangolizerAudioProcessorEditor::JangolizerAudioProcessorEditor (JangolizerAudioP
     bypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
         audioProcessor.apvts, "BYPASS", bypassButton);
 
-    setSize (800, 600);
+    setSize (800, 680);
 }
 
 JangolizerAudioProcessorEditor::~JangolizerAudioProcessorEditor()
@@ -144,19 +144,25 @@ void JangolizerAudioProcessorEditor::paint (juce::Graphics& g)
 {
     drawIndustrialBackground (g);
 
-    // Title
-    g.setFont (juce::Font (juce::FontOptions (28.0f, juce::Font::bold)));
+    // Title, kept small so the owl eyes stay the star of the show
+    g.setFont (juce::Font (juce::FontOptions (20.0f, juce::Font::bold)));
     g.setColour (juce::Colour (0xFF00FF00));
-    g.drawFittedText ("JANGOLIZER", getLocalBounds().removeFromTop (60), juce::Justification::centredTop, 1);
+    g.drawFittedText ("JANGOLIZER", getLocalBounds().removeFromTop (36), juce::Justification::centredTop, 1);
 
-    // Draw stylized cat eyes as visual feedback (depth indicator)
-    auto depthNorm = (float) depthSlider.getValue() / depthSlider.getMaximum();
-    drawCatEyes (g, getWidth() / 2, 35, depthNorm);
+    // Version tag
+    g.setFont (juce::Font (juce::FontOptions (10.0f, juce::Font::plain)));
+    g.setColour (juce::Colour (0xFF666666));
+    g.drawFittedText ("v" JucePlugin_VersionString, getLocalBounds().removeFromTop (36).removeFromRight (70).removeFromBottom (14),
+                       juce::Justification::centredRight, 1);
+
+    // Big, majestic owl eyes: the plugin's centerpiece and depth indicator
+    auto depthNorm = (float) (depthSlider.getValue() / depthSlider.getMaximum());
+    drawOwlEyes (g, getWidth() / 2, 186, depthNorm);
 
     // Bottom info
     g.setFont (juce::Font (juce::FontOptions (10.0f, juce::Font::italic)));
     g.setColour (juce::Colour (0xFF00AA00));
-    g.drawFittedText ("NO SUN. NO SYNTH.", getLocalBounds().removeFromBottom (20), juce::Justification::centredBottom, 1);
+    g.drawFittedText ("NO SOUND. NO WAVE.", getLocalBounds().removeFromBottom (20), juce::Justification::centredBottom, 1);
 }
 
 void JangolizerAudioProcessorEditor::drawIndustrialBackground (juce::Graphics& g)
@@ -182,43 +188,142 @@ void JangolizerAudioProcessorEditor::drawIndustrialBackground (juce::Graphics& g
     g.drawRect (getLocalBounds(), 2);
 }
 
-void JangolizerAudioProcessorEditor::drawCatEyes (juce::Graphics& g, int centerX, int centerY, float depth)
+void JangolizerAudioProcessorEditor::drawOwlEyes (juce::Graphics& g, int centerX, int centerY, float depth)
 {
-    auto eyeRadius = 6.0f + (depth * 4.0f);
-    auto eyeSpacing = 15.0f;
+    // Big, majestic owl eyes as the plugin's centerpiece.
+    auto eyeRadius   = 68.0f + (depth * 28.0f);
+    auto eyeSpacing  = 98.0f;
+    auto speedNorm   = (float) ((speedSlider.getValue() - 0.1f) / (400.0f - 0.1f));
 
-    // Left eye
-    g.setColour (juce::Colour (0xFF1a1a1a));
-    g.fillEllipse ((float) (centerX - eyeSpacing - eyeRadius), (float) (centerY - eyeRadius),
-                   eyeRadius * 2.0f, eyeRadius * 2.0f);
+    auto maskWidth  = eyeSpacing * 2.0f + eyeRadius * 2.3f;
+    auto maskHeight = eyeRadius * 2.6f;
+    auto maskLeft   = (float) centerX - maskWidth * 0.5f;
+    auto maskTop    = (float) centerY - maskHeight * 0.5f;
 
-    g.setColour (juce::Colour (0xFF00FF00));
-    g.fillEllipse ((float) (centerX - eyeSpacing - eyeRadius * 0.6f), (float) (centerY - eyeRadius * 0.5f),
-                   eyeRadius * 1.2f, eyeRadius * 1.5f);
+    // Facial disc (unified feathered mask joining both eyes)
+    juce::Path faceMask;
+    faceMask.addRoundedRectangle (maskLeft, maskTop, maskWidth, maskHeight, maskHeight * 0.42f);
+    juce::ColourGradient maskGradient (juce::Colour (0xFF3d3128), (float) centerX, maskTop,
+                                       juce::Colour (0xFF17130f), (float) centerX, maskTop + maskHeight, false);
+    g.setGradientFill (maskGradient);
+    g.fillPath (faceMask);
 
-    // Right eye
-    g.setColour (juce::Colour (0xFF1a1a1a));
-    g.fillEllipse ((float) (centerX + eyeSpacing - eyeRadius), (float) (centerY - eyeRadius),
-                   eyeRadius * 2.0f, eyeRadius * 2.0f);
+    g.setColour (juce::Colour (0xFF544433));
+    g.strokePath (faceMask, juce::PathStrokeType (2.0f));
 
-    g.setColour (juce::Colour (0xFF00FF00));
-    g.fillEllipse ((float) (centerX + eyeSpacing - eyeRadius * 0.6f), (float) (centerY - eyeRadius * 0.5f),
-                   eyeRadius * 1.2f, eyeRadius * 1.5f);
+    // Feather texture: subtle concentric radiating lines across the mask
+    g.setColour (juce::Colour (0xFF2a2019).withAlpha (0.5f));
+    for (int i = 1; i <= 5; ++i)
+    {
+        auto inset = (float) i * (maskHeight * 0.08f);
+        juce::Path ring;
+        ring.addRoundedRectangle (maskLeft + inset, maskTop + inset,
+                                   maskWidth - inset * 2.0f, maskHeight - inset * 2.0f,
+                                   (maskHeight - inset * 2.0f) * 0.42f);
+        g.strokePath (ring, juce::PathStrokeType (0.6f));
+    }
 
-    // Pupils (respond to speed parameter)
-    auto speedNorm = (float) ((speedSlider.getValue() - 0.1f) / (400.0f - 0.1f));
-    auto pupilX = -2.0f + (speedNorm * 4.0f);
-    auto pupilY = -1.0f;
+    // Ear tufts (great-horned-owl crown) for a fierce, majestic silhouette
+    auto drawEarTuft = [&] (float sign)
+    {
+        juce::Path tuft;
+        auto baseX = (float) centerX + sign * (maskWidth * 0.32f);
+        auto baseY = maskTop + maskHeight * 0.12f;
+        tuft.startNewSubPath (baseX - 16.0f, baseY);
+        tuft.lineTo (baseX + sign * 10.0f, baseY - eyeRadius * 0.95f);
+        tuft.lineTo (baseX + 20.0f, baseY);
+        tuft.closeSubPath();
+        juce::ColourGradient tuftGradient (juce::Colour (0xFF4a3a2a), baseX, baseY - eyeRadius,
+                                            juce::Colour (0xFF1c1712), baseX, baseY, false);
+        g.setGradientFill (tuftGradient);
+        g.fillPath (tuft);
+    };
+    drawEarTuft (-1.0f);
+    drawEarTuft (1.0f);
 
-    g.setColour (juce::Colours::black);
-    g.fillEllipse ((float) (centerX - eyeSpacing + pupilX - 1.5f), (float) (centerY + pupilY - 1.5f), 3.0f, 3.0f);
-    g.fillEllipse ((float) (centerX + eyeSpacing + pupilX - 1.5f), (float) (centerY + pupilY - 1.5f), 3.0f, 3.0f);
+    // Beak, nestled beneath the eyes
+    juce::Path beak;
+    auto beakY = (float) centerY + eyeRadius * 0.55f;
+    beak.addTriangle ((float) centerX - 10.0f, beakY,
+                       (float) centerX + 10.0f, beakY,
+                       (float) centerX, beakY + 20.0f);
+    g.setColour (juce::Colour (0xFFCC7A1E));
+    g.fillPath (beak);
+
+    // One glowing, expressive eye
+    auto drawEye = [&] (float sign)
+    {
+        auto eyeCentreX = (float) centerX + sign * eyeSpacing;
+        auto eyeCentreY = (float) centerY;
+
+        // Outer glow halo
+        for (int i = 4; i >= 1; --i)
+        {
+            auto glowR = eyeRadius + (float) i * 6.0f;
+            g.setColour (juce::Colour (0xFFFF8C00).withAlpha (0.05f));
+            g.fillEllipse (eyeCentreX - glowR, eyeCentreY - glowR, glowR * 2.0f, glowR * 2.0f);
+        }
+
+        // Eye socket
+        g.setColour (juce::Colour (0xFF0d0d0d));
+        g.fillEllipse (eyeCentreX - eyeRadius, eyeCentreY - eyeRadius, eyeRadius * 2.0f, eyeRadius * 2.0f);
+
+        // Iris, radial gradient for depth and glow
+        auto irisRadius = eyeRadius * 0.86f;
+        juce::ColourGradient irisGradient (juce::Colour (0xFFFFC94D), eyeCentreX, eyeCentreY,
+                                            juce::Colour (0xFFB84E00), eyeCentreX, eyeCentreY - irisRadius, true);
+        irisGradient.addColour (0.55, juce::Colour (0xFFFF8C00));
+        g.setGradientFill (irisGradient);
+        g.fillEllipse (eyeCentreX - irisRadius, eyeCentreY - irisRadius, irisRadius * 2.0f, irisRadius * 2.0f);
+
+        // Fine iris striations
+        g.setColour (juce::Colour (0xFF8A3D00).withAlpha (0.4f));
+        for (int i = 0; i < 16; ++i)
+        {
+            auto a = (float) i / 16.0f * juce::MathConstants<float>::twoPi;
+            juce::Line<float> spoke (eyeCentreX + std::cos (a) * irisRadius * 0.3f,
+                                      eyeCentreY + std::sin (a) * irisRadius * 0.3f,
+                                      eyeCentreX + std::cos (a) * irisRadius * 0.95f,
+                                      eyeCentreY + std::sin (a) * irisRadius * 0.95f);
+            g.drawLine (spoke, 1.0f);
+        }
+
+        // Pupil, reacts to speed and dilates with depth
+        auto pupilRadius = irisRadius * (0.30f + depth * 0.12f);
+        auto pupilOffsetX = (-1.0f + speedNorm * 2.0f) * (irisRadius - pupilRadius) * 0.6f;
+        g.setColour (juce::Colours::black);
+        g.fillEllipse (eyeCentreX + pupilOffsetX - pupilRadius, eyeCentreY - pupilRadius,
+                       pupilRadius * 2.0f, pupilRadius * 2.0f);
+
+        // Glint highlight
+        g.setColour (juce::Colours::white.withAlpha (0.85f));
+        auto glintR = eyeRadius * 0.12f;
+        g.fillEllipse (eyeCentreX + pupilOffsetX - glintR * 2.2f, eyeCentreY - irisRadius * 0.45f,
+                       glintR, glintR);
+
+        // Fierce upper eyelid, droops slightly deeper the more DEPTH is dialled in
+        juce::Path eyelid;
+        auto lidDrop = eyeRadius * (0.15f + depth * 0.25f);
+        eyelid.startNewSubPath (eyeCentreX - eyeRadius * 1.05f, eyeCentreY - eyeRadius * 0.55f);
+        eyelid.quadraticTo (eyeCentreX, eyeCentreY - eyeRadius - lidDrop,
+                            eyeCentreX + eyeRadius * 1.05f, eyeCentreY - eyeRadius * 0.55f);
+        eyelid.lineTo (eyeCentreX + eyeRadius * 1.05f, eyeCentreY - eyeRadius * 1.1f);
+        eyelid.quadraticTo (eyeCentreX, eyeCentreY - eyeRadius * 1.75f - lidDrop,
+                            eyeCentreX - eyeRadius * 1.05f, eyeCentreY - eyeRadius * 1.1f);
+        eyelid.closeSubPath();
+        g.setColour (juce::Colour (0xFF1c1712));
+        g.fillPath (eyelid);
+    };
+
+    drawEye (-1.0f);
+    drawEye (1.0f);
 }
 
 void JangolizerAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced (20);
-    area.removeFromTop (70);
+    area.removeFromTop (36);
+    area.removeFromTop (260); // reserved for the big owl eyes centerpiece
 
     // Top row - Sliders
     auto sliderRow = area.removeFromTop (160);

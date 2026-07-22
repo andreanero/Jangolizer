@@ -80,6 +80,31 @@ TEST (PluginProcessorTest, ProcessBlockProducesFiniteOutputInVcfMode)
     }
 }
 
+TEST (PluginProcessorTest, ProcessBlockProducesFiniteBoundedOutputInRevMode)
+{
+    JangolizerAudioProcessor processor;
+    processor.prepareToPlay (48000.0, 512);
+    setChoiceParameter (processor.apvts, "MODE", 2, 3);
+
+    auto buffer = makeTestBuffer (2, 512, 0.5f);
+    juce::MidiBuffer midi;
+
+    // Run several blocks so the reverse buffer has history to read back from.
+    for (int block = 0; block < 4; ++block)
+        processor.processBlock (buffer, midi);
+
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    {
+        auto const* data = buffer.getReadPointer (ch);
+        for (int i = 0; i < buffer.getNumSamples(); ++i)
+        {
+            ASSERT_FALSE (std::isnan (data[i]));
+            ASSERT_FALSE (std::isinf (data[i]));
+            ASSERT_LE (std::abs (data[i]), 1.0001f);
+        }
+    }
+}
+
 TEST (PluginProcessorTest, StateRoundTripsThroughGetAndSetStateInformation)
 {
     JangolizerAudioProcessor processor;

@@ -7,14 +7,14 @@
 ![JUCE](https://img.shields.io/badge/JUCE-8.0.12-orange.svg)
 [![Buy Me a Coffee](https://img.shields.io/badge/PayPal-Buy%20me%20a%20coffee-00457C.svg?logo=paypal)](https://paypal.me/andreaveronese)
 
-Jangolizer is a compact, performance-minded audio effect inspired by circuit‑bent hardware. It provides an anti‑aliased LFO engine, soft saturation, and two processing modes (VCA/VCF). The desktop build includes a stylized GUI; the embedded build for Elk Audio OS is headless and parameter-only.
+Jangolizer is a compact, performance-minded audio effect inspired by circuit‑bent hardware. It provides an anti‑aliased LFO engine, soft saturation, and three processing modes (VCA/VCF/REV). The desktop build includes a stylized GUI; the embedded build for Elk Audio OS is headless and parameter-only.
 
 </div>
 
 ## UI
 
 Dark, industrial look with neon green accents:
-- Title banner and a depth-reactive "cat eyes" indicator up top.
+- Title banner and a depth-reactive "owl eyes" indicator up top.
 - Four rotary knobs — SPEED, DEPTH, BIAS, GAIN — in a row.
 - WAVEFORM and MODE selectors below the knobs.
 - BYPASS toggle below the selectors — on by default every time the plugin loads.
@@ -24,7 +24,7 @@ Dark, industrial look with neon green accents:
 
 - PolyBLEP anti‑aliased oscillator (Square, Triangle, Saw, Inverted Saw, Sine)
 - Wide LFO range (0.1 Hz – 400 Hz) for modulation and ring modulation
-- Dual modes: VCA (tremolo/ring) and VCF (LFO‑modulated bandpass)
+- Three modes: VCA (tremolo/ring), VCF (LFO‑modulated bandpass), REV (SPEED‑synced reverse chunks)
 - RT‑safe DSP: no allocations in audio thread, parameter smoothing, stereo processing
 - Desktop GUI + headless Elk Audio OS target
 
@@ -69,12 +69,12 @@ cmake --build --preset elk-headless
 
 ## Parameters
 
-- SPEED: 0.1 – 400 Hz (default 5 Hz)
-- DEPTH: 0.0 – 1.0 (default 0.7)
+- SPEED: 0.1 – 400 Hz (default 5 Hz) — LFO rate in VCA/VCF, reverse chunk rate in REV (chunk length clamped to 2 s max)
+- DEPTH: 0.0 – 1.0 (default 0.7) — modulation depth in VCA/VCF, dry/reversed mix in REV
 - BIAS: -1.0 – 1.0 (default 0.0)
 - GAIN: 1.0 – 10.0 (default 1.0)
 - WAVEFORM: Square / Triangle / Saw / InvSaw / Sine
-- MODE: VCA / VCF
+- MODE: VCA / VCF / REV
 - BYPASS: on / off (default on, reset to on every load — not restored from saved state)
 
 ## License

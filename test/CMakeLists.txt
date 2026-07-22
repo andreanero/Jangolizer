@@ -37,6 +37,7 @@ target_compile_definitions(JangolizerTests PRIVATE
   ELK_HEADLESS=0
   JUCE_PLUGINHOST_VST=0
   JUCE_IGNORE_VST3_MISMATCHED_PARAMETER_ID_WARNING=1
+  JucePlugin_VersionString="1.0.0"
 )
 
 target_link_libraries(JangolizerTests PRIVATE

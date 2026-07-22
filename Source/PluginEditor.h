@@ -55,7 +55,7 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> modeAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
 
-    void drawCatEyes (juce::Graphics& g, int centerX, int centerY, float depth);
+    void drawOwlEyes (juce::Graphics& g, int centerX, int centerY, float depth);
     void drawIndustrialBackground (juce::Graphics& g);
     void setupSlider (juce::Slider& slider, juce::Label& label, const juce::String& name);
     void setupComboBox (juce::ComboBox& box, juce::Label& label, const juce::String& name);

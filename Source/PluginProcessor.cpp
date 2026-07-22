@@ -32,7 +32,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout JangolizerAudioProcessor::cr
         "WAVE", "LFO Waveform", juce::StringArray { "Square", "Triangle", "Sawtooth", "InvSawtooth", "Sine" }, 1));
 
     layout.add (std::make_unique<juce::AudioParameterChoice> (
-        "MODE", "Effect Mode", juce::StringArray { "VCA (Tremolo)", "VCF (Filter)" }, 0));
+        "MODE", "Effect Mode", juce::StringArray { "VCA (Tremolo)", "VCF (Filter)", "REV (Reverse)" }, 0));
 
     layout.add (std::make_unique<juce::AudioParameterBool> (
         "BYPASS", "Bypass", true));
@@ -58,6 +58,13 @@ void JangolizerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
     smoothedDepth.reset (sampleRate, 0.02);
     smoothedBias.reset  (sampleRate, 0.02);
     smoothedGain.reset  (sampleRate, 0.02);
+
+    reverseBuffer.setSize (2, juce::jmax (32, (int) (sampleRate * kMaxReverseChunkSeconds)));
+    reverseBuffer.clear();
+    reverseWritePos = 0;
+    reverseChunkLength = 0;
+    reverseChunkRemaining = 0;
+    reverseChunkStartPos = 0;
 }
 
 void JangolizerAudioProcessor::releaseResources() {}
@@ -109,14 +116,40 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
             leftChannel[sample]  = saturatedL * unipolarMod;
             rightChannel[sample] = saturatedR * unipolarMod;
         }
-        else
+        else if (mode == 1)
         {
             leftChannel[sample]  = saturatedL;
             rightChannel[sample] = saturatedR;
 
             float const targetCutoff = 80.0f * std::pow (2.0f, unipolarMod * 6.5f);
-            
+
             *bandPassFilter.state = *juce::dsp::IIR::Coefficients<float>::makeBandPass (currentSampleRate, targetCutoff, 2.5f);
+        }
+        else
+        {
+            int const reverseBufferSize = reverseBuffer.getNumSamples();
+
+            reverseBuffer.setSample (0, reverseWritePos, saturatedL);
+            reverseBuffer.setSample (1, reverseWritePos, saturatedR);
+
+            if (reverseChunkRemaining <= 0)
+            {
+                reverseChunkLength = juce::jlimit (32, reverseBufferSize, (int) (currentSampleRate / currentSpeed));
+                reverseChunkStartPos = reverseWritePos;
+                reverseChunkRemaining = reverseChunkLength;
+            }
+
+            int const offset = reverseChunkLength - reverseChunkRemaining;
+            int const readPos = ((reverseChunkStartPos - offset) % reverseBufferSize + reverseBufferSize) % reverseBufferSize;
+
+            float const reversedL = reverseBuffer.getSample (0, readPos);
+            float const reversedR = reverseBuffer.getSample (1, readPos);
+
+            leftChannel[sample]  = juce::jmap (currentDepth, saturatedL, reversedL);
+            rightChannel[sample] = juce::jmap (currentDepth, saturatedR, reversedR);
+
+            --reverseChunkRemaining;
+            reverseWritePos = (reverseWritePos + 1) % reverseBufferSize;
         }
     }
 
