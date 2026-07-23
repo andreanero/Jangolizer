@@ -14,7 +14,7 @@ public:
                            float rotaryEndAngle, juce::Slider& slider) override;
 
 private:
-    juce::Colour accentGreen {0xFF00FF00};
+    juce::Colour accentOrange {0xFFFF8C00};
     juce::Colour darkBg {0xFF1a1a1a};
 };
 
@@ -47,6 +47,8 @@ private:
 
     juce::ToggleButton bypassButton;
 
+    juce::Image backgroundImage;
+
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> speedAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> depthAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> biasAttachment;
@@ -55,7 +57,6 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> modeAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
 
-    void drawOwlEyes (juce::Graphics& g, int centerX, int centerY, float depth);
     void drawIndustrialBackground (juce::Graphics& g);
     void setupSlider (juce::Slider& slider, juce::Label& label, const juce::String& name);
     void setupComboBox (juce::ComboBox& box, juce::Label& label, const juce::String& name);
