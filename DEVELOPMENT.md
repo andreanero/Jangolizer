@@ -71,8 +71,11 @@ JUCE editor:
 - Four rotary knobs (SPEED, DEPTH, BIAS, GAIN), WAVEFORM/MODE combo boxes, and a
   BYPASS toggle, all bound to `apvts` via `SliderAttachment` / `ComboBoxAttachment`
   / `ButtonAttachment`
-- `drawIndustrialBackground()` / `drawCatEyes()` — decorative painting, driven by
-  the DEPTH/SPEED slider values
+- `backgroundImage` — static owl-eyes artwork loaded from `BinaryData::background_png`
+  (built from `Source/Resources/background.png` via `juce_add_binary_data`), drawn full-bleed
+  in `paint()`
+- `drawIndustrialBackground()` — procedural fallback background, only used if the
+  binary image fails to load
 - Layout lives in `resized()`; colours/fonts are set per-control in the `setup*()` helpers
 
 ## Building & Testing

@@ -13,8 +13,8 @@ Jangolizer is a compact, performance-minded audio effect inspired by circuit‑b
 
 ## UI
 
-Dark, industrial look with neon green accents:
-- Title banner and a depth-reactive "owl eyes" indicator up top.
+Dark, industrial look with orange accents, static owl-eyes background artwork (`Source/Resources/background.png`, compiled in via JUCE BinaryData):
+- Title banner ("JANGOLIZER") over the background artwork.
 - Four rotary knobs — SPEED, DEPTH, BIAS, GAIN — in a row.
 - WAVEFORM and MODE selectors below the knobs.
 - BYPASS toggle below the selectors — on by default every time the plugin loads.
@@ -64,6 +64,7 @@ cmake --build --preset elk-headless
 ## Project Layout
 
 - Source/: DSP and UI code (PluginProcessor, PluginEditor, PolyBLEP core)
+- Source/Resources/: UI assets (background.png), compiled in via JUCE BinaryData
 - cmake/: build helpers and CPM integration
 - libs/: external dependencies (gitignored)
 
