@@ -14,7 +14,7 @@ public:
                            float rotaryEndAngle, juce::Slider& slider) override;
 
 private:
-    juce::Colour accentGreen {0xFF00FF00};
+    juce::Colour accentOrange {0xFFFF8C00};
     juce::Colour darkBg {0xFF1a1a1a};
 };
 
@@ -42,20 +42,26 @@ private:
     juce::Slider speedSlider, depthSlider, biasSlider, gainSlider;
     juce::Label speedLabel, depthLabel, biasLabel, gainLabel;
 
-    juce::ComboBox waveformSelector, modeSelector;
-    juce::Label waveformLabel, modeLabel;
+    juce::Slider vcaMixSlider, vcfMixSlider, revMixSlider;
+    juce::Label vcaMixLabel, vcfMixLabel, revMixLabel;
+
+    juce::ComboBox waveformSelector;
+    juce::Label waveformLabel;
 
     juce::ToggleButton bypassButton;
+
+    juce::Image backgroundImage;
 
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> speedAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> depthAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> biasAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> gainAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vcaMixAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vcfMixAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> revMixAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> waveformAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> modeAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
 
-    void drawCatEyes (juce::Graphics& g, int centerX, int centerY, float depth);
     void drawIndustrialBackground (juce::Graphics& g);
     void setupSlider (juce::Slider& slider, juce::Label& label, const juce::String& name);
     void setupComboBox (juce::ComboBox& box, juce::Label& label, const juce::String& name);

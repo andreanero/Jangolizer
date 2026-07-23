@@ -1,18 +1,19 @@
 #include "PluginEditor.h"
+#include "BinaryData.h"
 
 RotarySliderLook::RotarySliderLook()
 {
-    setColour (juce::Slider::rotarySliderFillColourId, accentGreen);
+    setColour (juce::Slider::rotarySliderFillColourId, accentOrange);
     setColour (juce::Slider::rotarySliderOutlineColourId, juce::Colour (0xFF333333));
     setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
     setColour (juce::Slider::textBoxBackgroundColourId, darkBg);
-    setColour (juce::Slider::textBoxTextColourId, accentGreen);
-    setColour (juce::Slider::thumbColourId, accentGreen);
+    setColour (juce::Slider::textBoxTextColourId, accentOrange);
+    setColour (juce::Slider::thumbColourId, accentOrange);
 }
 
 void RotarySliderLook::drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height,
                                          float sliderPosProportional, float rotaryStartAngle,
-                                         float rotaryEndAngle, juce::Slider& slider)
+                                         float rotaryEndAngle, juce::Slider&)
 {
     auto radius = (float) juce::jmin (width / 2, height / 2) - 2.0f;
     auto centreX = (float) x + (float) width * 0.5f;
@@ -34,7 +35,7 @@ void RotarySliderLook::drawRotarySlider (juce::Graphics& g, int x, int y, int wi
     juce::Path filledArc;
     filledArc.addCentredArc (centreX, centreY, radius, radius,
                             0.0f, rotaryStartAngle, angle, true);
-    g.setColour (accentGreen);
+    g.setColour (accentOrange);
     g.strokePath (filledArc, juce::PathStrokeType (4.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
     // Pointer
@@ -53,6 +54,8 @@ JangolizerAudioProcessorEditor::JangolizerAudioProcessorEditor (JangolizerAudioP
 {
     setLookAndFeel (&rotaryLook);
 
+    backgroundImage = juce::ImageCache::getFromMemory (BinaryData::background_png, BinaryData::background_pngSize);
+
     // Setup sliders
     setupSlider (speedSlider, speedLabel, "SPEED");
     setupSlider (depthSlider, depthLabel, "DEPTH");
@@ -65,20 +68,25 @@ JangolizerAudioProcessorEditor::JangolizerAudioProcessorEditor (JangolizerAudioP
     biasSlider.setRange (-1.0f, 1.0f, 0.01f);
     gainSlider.setRange (1.0f, 10.0f, 0.01f);
 
-    // Setup combo boxes
+    setupSlider (vcaMixSlider, vcaMixLabel, "VCA MIX");
+    setupSlider (vcfMixSlider, vcfMixLabel, "VCF MIX");
+    setupSlider (revMixSlider, revMixLabel, "REV MIX");
+
+    vcaMixSlider.setRange (0.0f, 1.0f, 0.01f);
+    vcfMixSlider.setRange (0.0f, 1.0f, 0.01f);
+    revMixSlider.setRange (0.0f, 1.0f, 0.01f);
+
+    // Setup combo box
     setupComboBox (waveformSelector, waveformLabel, "WAVEFORM");
-    setupComboBox (modeSelector, modeLabel, "MODE");
 
     waveformSelector.addItemList ({"Square", "Triangle", "Sawtooth", "Inv-Sawtooth", "Sine"}, 1);
-    modeSelector.addItemList ({"VCA (Tremolo)", "VCF (Filter)"}, 1);
 
     waveformSelector.addListener (this);
-    modeSelector.addListener (this);
 
     // Bypass toggle
     bypassButton.setButtonText ("BYPASS");
-    bypassButton.setColour (juce::ToggleButton::textColourId, juce::Colour (0xFF00FF00));
-    bypassButton.setColour (juce::ToggleButton::tickColourId, juce::Colour (0xFF00FF00));
+    bypassButton.setColour (juce::ToggleButton::textColourId, juce::Colour (0xFFFF8C00));
+    bypassButton.setColour (juce::ToggleButton::tickColourId, juce::Colour (0xFFFF8C00));
     bypassButton.setColour (juce::ToggleButton::tickDisabledColourId, juce::Colour (0xFF444444));
     bypassButton.addListener (this);
     addAndMakeVisible (bypassButton);
@@ -94,12 +102,16 @@ JangolizerAudioProcessorEditor::JangolizerAudioProcessorEditor (JangolizerAudioP
         audioProcessor.apvts, "GAIN", gainSlider);
     waveformAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
         audioProcessor.apvts, "WAVE", waveformSelector);
-    modeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
-        audioProcessor.apvts, "MODE", modeSelector);
+    vcaMixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
+        audioProcessor.apvts, "VCA_MIX", vcaMixSlider);
+    vcfMixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
+        audioProcessor.apvts, "VCF_MIX", vcfMixSlider);
+    revMixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
+        audioProcessor.apvts, "REV_MIX", revMixSlider);
     bypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
         audioProcessor.apvts, "BYPASS", bypassButton);
 
-    setSize (800, 600);
+    setSize (800, 740);
 }
 
 JangolizerAudioProcessorEditor::~JangolizerAudioProcessorEditor()
@@ -113,14 +125,14 @@ void JangolizerAudioProcessorEditor::setupSlider (juce::Slider& slider, juce::La
     slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 50, 20);
     slider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
     slider.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colour (0xFF1a1a1a));
-    slider.setColour (juce::Slider::textBoxTextColourId, juce::Colour (0xFF00FF00));
+    slider.setColour (juce::Slider::textBoxTextColourId, juce::Colour (0xFFFF8C00));
     addAndMakeVisible (slider);
 
     label.setText (name, juce::dontSendNotification);
     label.setJustificationType (juce::Justification::centred);
     label.attachToComponent (&slider, false);
     label.setFont (juce::Font (juce::FontOptions (11.0f, juce::Font::bold)));
-    label.setColour (juce::Label::textColourId, juce::Colour (0xFF00FF00));
+    label.setColour (juce::Label::textColourId, juce::Colour (0xFFFF8C00));
 }
 
 void JangolizerAudioProcessorEditor::setupComboBox (juce::ComboBox& box, juce::Label& label, const juce::String& name)
@@ -128,35 +140,39 @@ void JangolizerAudioProcessorEditor::setupComboBox (juce::ComboBox& box, juce::L
     box.setEditableText (false);
     box.setJustificationType (juce::Justification::centredLeft);
     box.setColour (juce::ComboBox::backgroundColourId, juce::Colour (0xFF2a2a2a));
-    box.setColour (juce::ComboBox::textColourId, juce::Colour (0xFF00FF00));
+    box.setColour (juce::ComboBox::textColourId, juce::Colour (0xFFFF8C00));
     box.setColour (juce::ComboBox::outlineColourId, juce::Colour (0xFF444444));
-    box.setColour (juce::ComboBox::buttonColourId, juce::Colour (0xFF00FF00));
+    box.setColour (juce::ComboBox::buttonColourId, juce::Colour (0xFFFF8C00));
     addAndMakeVisible (box);
 
     label.setText (name, juce::dontSendNotification);
     label.setJustificationType (juce::Justification::centredLeft);
     label.attachToComponent (&box, true);
     label.setFont (juce::Font (juce::FontOptions (11.0f, juce::Font::bold)));
-    label.setColour (juce::Label::textColourId, juce::Colour (0xFF00FF00));
+    label.setColour (juce::Label::textColourId, juce::Colour (0xFFFF8C00));
 }
 
 void JangolizerAudioProcessorEditor::paint (juce::Graphics& g)
 {
-    drawIndustrialBackground (g);
+    if (backgroundImage.isValid())
+        g.drawImage (backgroundImage, getLocalBounds().toFloat(), juce::RectanglePlacement::fillDestination);
+    else
+        drawIndustrialBackground (g);
 
-    // Title
-    g.setFont (juce::Font (juce::FontOptions (28.0f, juce::Font::bold)));
-    g.setColour (juce::Colour (0xFF00FF00));
-    g.drawFittedText ("JANGOLIZER", getLocalBounds().removeFromTop (60), juce::Justification::centredTop, 1);
+    g.setFont (juce::Font (juce::FontOptions (20.0f, juce::Font::bold)));
+    g.setColour (juce::Colour (0xFFFF8C00));
+    g.drawFittedText ("JANGOLIZER", getLocalBounds().removeFromTop (36), juce::Justification::centredTop, 1);
 
-    // Draw stylized cat eyes as visual feedback (depth indicator)
-    auto depthNorm = (float) depthSlider.getValue() / depthSlider.getMaximum();
-    drawCatEyes (g, getWidth() / 2, 35, depthNorm);
+    // Version tag
+    g.setFont (juce::Font (juce::FontOptions (10.0f, juce::Font::plain)));
+    g.setColour (juce::Colour (0xFF3a2a1a));
+    g.drawFittedText ("v" JucePlugin_VersionString, getLocalBounds().removeFromTop (36).removeFromRight (70).removeFromBottom (14),
+                       juce::Justification::centredRight, 1);
 
     // Bottom info
     g.setFont (juce::Font (juce::FontOptions (10.0f, juce::Font::italic)));
-    g.setColour (juce::Colour (0xFF00AA00));
-    g.drawFittedText ("NO SUN. NO SYNTH.", getLocalBounds().removeFromBottom (20), juce::Justification::centredBottom, 1);
+    g.setColour (juce::Colour (0xFFCC7000));
+    g.drawFittedText ("NO SOUND. NO WAVE.", getLocalBounds().removeFromBottom (20), juce::Justification::centredBottom, 1);
 }
 
 void JangolizerAudioProcessorEditor::drawIndustrialBackground (juce::Graphics& g)
@@ -182,43 +198,11 @@ void JangolizerAudioProcessorEditor::drawIndustrialBackground (juce::Graphics& g
     g.drawRect (getLocalBounds(), 2);
 }
 
-void JangolizerAudioProcessorEditor::drawCatEyes (juce::Graphics& g, int centerX, int centerY, float depth)
-{
-    auto eyeRadius = 6.0f + (depth * 4.0f);
-    auto eyeSpacing = 15.0f;
-
-    // Left eye
-    g.setColour (juce::Colour (0xFF1a1a1a));
-    g.fillEllipse ((float) (centerX - eyeSpacing - eyeRadius), (float) (centerY - eyeRadius),
-                   eyeRadius * 2.0f, eyeRadius * 2.0f);
-
-    g.setColour (juce::Colour (0xFF00FF00));
-    g.fillEllipse ((float) (centerX - eyeSpacing - eyeRadius * 0.6f), (float) (centerY - eyeRadius * 0.5f),
-                   eyeRadius * 1.2f, eyeRadius * 1.5f);
-
-    // Right eye
-    g.setColour (juce::Colour (0xFF1a1a1a));
-    g.fillEllipse ((float) (centerX + eyeSpacing - eyeRadius), (float) (centerY - eyeRadius),
-                   eyeRadius * 2.0f, eyeRadius * 2.0f);
-
-    g.setColour (juce::Colour (0xFF00FF00));
-    g.fillEllipse ((float) (centerX + eyeSpacing - eyeRadius * 0.6f), (float) (centerY - eyeRadius * 0.5f),
-                   eyeRadius * 1.2f, eyeRadius * 1.5f);
-
-    // Pupils (respond to speed parameter)
-    auto speedNorm = (float) ((speedSlider.getValue() - 0.1f) / (400.0f - 0.1f));
-    auto pupilX = -2.0f + (speedNorm * 4.0f);
-    auto pupilY = -1.0f;
-
-    g.setColour (juce::Colours::black);
-    g.fillEllipse ((float) (centerX - eyeSpacing + pupilX - 1.5f), (float) (centerY + pupilY - 1.5f), 3.0f, 3.0f);
-    g.fillEllipse ((float) (centerX + eyeSpacing + pupilX - 1.5f), (float) (centerY + pupilY - 1.5f), 3.0f, 3.0f);
-}
-
 void JangolizerAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced (20);
-    area.removeFromTop (70);
+    area.removeFromTop (36);
+    area.removeFromTop (260);
 
     // Top row - Sliders
     auto sliderRow = area.removeFromTop (160);
@@ -229,13 +213,17 @@ void JangolizerAudioProcessorEditor::resized()
     biasSlider.setBounds (sliderRow.removeFromLeft (sliderWidth).reduced (5));
     gainSlider.setBounds (sliderRow.removeFromLeft (sliderWidth).reduced (5));
 
-    // Middle section - Selectors
-    auto selectorRow = area.removeFromTop (80);
-    auto leftCol = selectorRow.removeFromLeft (selectorRow.getWidth() / 2).reduced (10);
-    auto rightCol = selectorRow.reduced (10);
+    // Chain mix row - VCA / VCF / REV knobs
+    auto mixRow = area.removeFromTop (120);
+    auto mixWidth = mixRow.getWidth() / 3;
 
-    waveformSelector.setBounds (leftCol.removeFromBottom (30));
-    modeSelector.setBounds (rightCol.removeFromBottom (30));
+    vcaMixSlider.setBounds (mixRow.removeFromLeft (mixWidth).reduced (5));
+    vcfMixSlider.setBounds (mixRow.removeFromLeft (mixWidth).reduced (5));
+    revMixSlider.setBounds (mixRow.removeFromLeft (mixWidth).reduced (5));
+
+    // Middle section - Waveform selector
+    auto selectorRow = area.removeFromTop (40);
+    waveformSelector.setBounds (selectorRow.reduced (10).removeFromBottom (30));
 
     // Bottom - Bypass toggle
     auto bypassRow = area.removeFromTop (30);
@@ -250,7 +238,7 @@ void JangolizerAudioProcessorEditor::sliderValueChanged (juce::Slider* slider)
 
 void JangolizerAudioProcessorEditor::comboBoxChanged (juce::ComboBox* comboBox)
 {
-    if (comboBox == &waveformSelector || comboBox == &modeSelector)
+    if (comboBox == &waveformSelector)
         repaint();
 }
 

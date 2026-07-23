@@ -71,6 +71,14 @@ juce_add_plugin(JangolizerPlugin
 
 target_sources(JangolizerPlugin PRIVATE ${SharedSources})
 
+if (NOT ELK_HEADLESS_BUILD)
+    juce_add_binary_data(JangolizerBinaryData
+        SOURCES
+            Source/Resources/background.png
+    )
+    target_link_libraries(JangolizerPlugin PRIVATE JangolizerBinaryData)
+endif()
+
 if (ELK_HEADLESS_BUILD)
     target_compile_definitions(JangolizerPlugin PRIVATE
         JUCE_WEB_BROWSER=0

@@ -17,7 +17,7 @@ public:
     void advance() 
     {
         if (sampleRate > 0.0) {
-            phase += frequency / sampleRate;
+            phase += static_cast<float>(frequency / sampleRate);
             if (phase >= 1.0f) phase -= 1.0f;
         }
     }
@@ -25,7 +25,7 @@ public:
     float getSample() 
     {
         float output = 0.0f;
-        float dt = frequency / sampleRate;
+        float dt = static_cast<float>(frequency / sampleRate);
 
         switch (currentWaveform) 
         {

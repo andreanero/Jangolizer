@@ -7,16 +7,16 @@
 ![JUCE](https://img.shields.io/badge/JUCE-8.0.12-orange.svg)
 [![Buy Me a Coffee](https://img.shields.io/badge/PayPal-Buy%20me%20a%20coffee-00457C.svg?logo=paypal)](https://paypal.me/andreaveronese)
 
-Jangolizer is a compact, performance-minded audio effect inspired by circuit‑bent hardware. It provides an anti‑aliased LFO engine, soft saturation, and two processing modes (VCA/VCF). The desktop build includes a stylized GUI; the embedded build for Elk Audio OS is headless and parameter-only.
+Jangolizer is a compact, performance-minded audio effect inspired by circuit‑bent hardware. It provides an anti‑aliased LFO engine, soft saturation, and a sequential VCA → VCF → REV effect chain, each stage blended independently via its own mix knob. The desktop build includes a stylized GUI; the embedded build for Elk Audio OS is headless and parameter-only.
 
 </div>
 
 ## UI
 
-Dark, industrial look with neon green accents:
-- Title banner and a depth-reactive "cat eyes" indicator up top.
+Dark, industrial look with orange accents, static owl-eyes background artwork (`Source/Resources/background.png`, compiled in via JUCE BinaryData):
+- Title banner ("JANGOLIZER") over the background artwork.
 - Four rotary knobs — SPEED, DEPTH, BIAS, GAIN — in a row.
-- WAVEFORM and MODE selectors below the knobs.
+- WAVEFORM selector plus VCA_MIX, VCF_MIX, REV_MIX knobs below the main row.
 - BYPASS toggle below the selectors — on by default every time the plugin loads.
 - Headless (Elk Audio OS) builds omit the UI entirely; only the parameters remain.
 
@@ -24,7 +24,7 @@ Dark, industrial look with neon green accents:
 
 - PolyBLEP anti‑aliased oscillator (Square, Triangle, Saw, Inverted Saw, Sine)
 - Wide LFO range (0.1 Hz – 400 Hz) for modulation and ring modulation
-- Dual modes: VCA (tremolo/ring) and VCF (LFO‑modulated bandpass)
+- Sequential VCA → VCF → REV chain (tremolo/ring → LFO‑modulated bandpass → SPEED‑synced reverse chunks), each stage independently blendable
 - RT‑safe DSP: no allocations in audio thread, parameter smoothing, stereo processing
 - Desktop GUI + headless Elk Audio OS target
 
@@ -64,17 +64,18 @@ cmake --build --preset elk-headless
 ## Project Layout
 
 - Source/: DSP and UI code (PluginProcessor, PluginEditor, PolyBLEP core)
+- Source/Resources/: UI assets (background.png), compiled in via JUCE BinaryData
 - cmake/: build helpers and CPM integration
 - libs/: external dependencies (gitignored)
 
 ## Parameters
 
-- SPEED: 0.1 – 400 Hz (default 5 Hz)
-- DEPTH: 0.0 – 1.0 (default 0.7)
+- SPEED: 0.1 – 400 Hz (default 5 Hz) — LFO rate for VCA/VCF stages, reverse chunk rate for REV stage (chunk length clamped to 2 s max)
+- DEPTH: 0.0 – 1.0 (default 0.7) — modulation depth for VCA/VCF stages, dry/reversed mix inside the REV stage
 - BIAS: -1.0 – 1.0 (default 0.0)
 - GAIN: 1.0 – 10.0 (default 1.0)
 - WAVEFORM: Square / Triangle / Saw / InvSaw / Sine
-- MODE: VCA / VCF
+- VCA_MIX / VCF_MIX / REV_MIX: 0.0 – 1.0 — dry/wet blend for each chain stage, applied in order (VCA → VCF → REV)
 - BYPASS: on / off (default on, reset to on every load — not restored from saved state)
 
 ## License

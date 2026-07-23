@@ -6,6 +6,11 @@ This document provides guidance for developers working on the Jangolizer plugin.
 
 ### Signal Flow
 
+Stages run sequentially (not mutually exclusive modes) — each stage blends
+dry/wet via its own mix parameter, so all three can contribute at once.
+Order is chosen for an ambient, dark-folk character (smooth swell first,
+darkened by the filter, smeared last by the reverse stage):
+
 ```
 Audio Input
     ↓
@@ -13,9 +18,13 @@ Audio Input
     ↓
 [Saturation Stage (tanh)]
     ↓
-    ├─→ [VCA Mode: Multiply by LFO] ──→ Audio Output
-    │
-    └─→ [VCF Mode: Route through Bandpass Filter with LFO-controlled cutoff] ──→ Audio Output
+[VCA Stage: Multiply by LFO, blend via VCA_MIX]
+    ↓
+[VCF Stage: Bandpass Filter with LFO-controlled cutoff, blend via VCF_MIX]
+    ↓
+[REV Stage: SPEED-synced reverse chunks, blend via REV_MIX]
+    ↓
+Audio Output
 
 Parallel to audio path:
 [LFO Generator (PolyBLEP)]
@@ -23,6 +32,9 @@ Parallel to audio path:
     ├─→ Apply Depth (amplitude scaling)
     └─→ Apply Bias (DC offset)
 ```
+
+Swap VCA/VCF ordering for a more industrial feel (filter grit before the
+gate) — the LFO and saturation stages stay shared across all three.
 
 ## Core Components
 
@@ -59,7 +71,8 @@ The heart of the plugin. Inherits from `juce::AudioProcessor`.
    - Advance LFO oscillator
    - Compute modulation signal (LFO × Depth + Bias)
    - Apply input gain + saturation
-   - Route through VCA or VCF based on mode
+   - Apply VCA, VCF, REV stages in sequence, each blended by its own mix
+     parameter (VCA_MIX / VCF_MIX / REV_MIX)
 
 ### 3. **PluginEditor.h / PluginEditor.cpp** (Desktop Only)
 Conditional compilation: **Only compiled when `ELK_HEADLESS=0`**
@@ -71,8 +84,11 @@ JUCE editor:
 - Four rotary knobs (SPEED, DEPTH, BIAS, GAIN), WAVEFORM/MODE combo boxes, and a
   BYPASS toggle, all bound to `apvts` via `SliderAttachment` / `ComboBoxAttachment`
   / `ButtonAttachment`
-- `drawIndustrialBackground()` / `drawCatEyes()` — decorative painting, driven by
-  the DEPTH/SPEED slider values
+- `backgroundImage` — static owl-eyes artwork loaded from `BinaryData::background_png`
+  (built from `Source/Resources/background.png` via `juce_add_binary_data`), drawn full-bleed
+  in `paint()`
+- `drawIndustrialBackground()` — procedural fallback background, only used if the
+  binary image fails to load
 - Layout lives in `resized()`; colours/fonts are set per-control in the `setup*()` helpers
 
 ## Building & Testing
@@ -202,7 +218,7 @@ To add a new control to the existing custom editor (`PluginEditor.h/.cpp`):
 
 ### Optimization Tips
 1. **LFO Frequency**: The PolyBLEP computation is O(1). For high-freq LFOs (>100 Hz), consider band-limiting in a separate thread.
-2. **Filter Updates**: Updating IIR coefficients every sample is expensive. Only update on parameter change or every N samples.
+2. **Filter Updates**: IIR coefficients are computed once per block (from the block's final modulation value), not per sample — `bandPassFilter.process()` only ever sees the last-set coefficients anyway, so per-sample recomputation was pure waste.
 3. **Saturation**: `std::tanh()` is relatively expensive. Consider lookup table for ultra-low-latency Elk deployments.
 
 ## Elk Audio OS Integration
