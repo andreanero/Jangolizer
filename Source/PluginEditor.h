@@ -42,8 +42,11 @@ private:
     juce::Slider speedSlider, depthSlider, biasSlider, gainSlider;
     juce::Label speedLabel, depthLabel, biasLabel, gainLabel;
 
-    juce::ComboBox waveformSelector, modeSelector;
-    juce::Label waveformLabel, modeLabel;
+    juce::Slider vcaMixSlider, vcfMixSlider, revMixSlider;
+    juce::Label vcaMixLabel, vcfMixLabel, revMixLabel;
+
+    juce::ComboBox waveformSelector;
+    juce::Label waveformLabel;
 
     juce::ToggleButton bypassButton;
 
@@ -53,8 +56,10 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> depthAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> biasAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> gainAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vcaMixAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vcfMixAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> revMixAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> waveformAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> modeAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
 
     void drawIndustrialBackground (juce::Graphics& g);

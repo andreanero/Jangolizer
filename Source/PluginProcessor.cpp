@@ -31,8 +31,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout JangolizerAudioProcessor::cr
     layout.add (std::make_unique<juce::AudioParameterChoice> (
         "WAVE", "LFO Waveform", juce::StringArray { "Square", "Triangle", "Sawtooth", "InvSawtooth", "Sine" }, 1));
 
-    layout.add (std::make_unique<juce::AudioParameterChoice> (
-        "MODE", "Effect Mode", juce::StringArray { "VCA (Tremolo)", "VCF (Filter)", "REV (Reverse)" }, 0));
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        "VCA_MIX", "VCA Mix", 0.0f, 1.0f, 1.0f));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        "VCF_MIX", "VCF Mix", 0.0f, 1.0f, 0.0f));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        "REV_MIX", "REV Mix", 0.0f, 1.0f, 0.0f));
 
     layout.add (std::make_unique<juce::AudioParameterBool> (
         "BYPASS", "Bypass", true));
@@ -58,6 +64,11 @@ void JangolizerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
     smoothedDepth.reset (sampleRate, 0.02);
     smoothedBias.reset  (sampleRate, 0.02);
     smoothedGain.reset  (sampleRate, 0.02);
+    smoothedVcaMix.reset (sampleRate, 0.02);
+    smoothedVcfMix.reset (sampleRate, 0.02);
+    smoothedRevMix.reset (sampleRate, 0.02);
+
+    vcfDryBuffer.setSize (2, samplesPerBlock);
 
     reverseBuffer.setSize (2, juce::jmax (32, (int) (sampleRate * kMaxReverseChunkSeconds)));
     reverseBuffer.clear();
@@ -76,29 +87,32 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
     if (*apvts.getRawParameterValue ("BYPASS") > 0.5f)
         return;
 
-    smoothedSpeed.setTargetValue (*apvts.getRawParameterValue ("SPEED"));
-    smoothedDepth.setTargetValue (*apvts.getRawParameterValue ("DEPTH"));
-    smoothedBias.setTargetValue  (*apvts.getRawParameterValue ("BIAS"));
-    smoothedGain.setTargetValue  (*apvts.getRawParameterValue ("GAIN"));
+    smoothedSpeed.setTargetValue  (*apvts.getRawParameterValue ("SPEED"));
+    smoothedDepth.setTargetValue  (*apvts.getRawParameterValue ("DEPTH"));
+    smoothedBias.setTargetValue   (*apvts.getRawParameterValue ("BIAS"));
+    smoothedGain.setTargetValue   (*apvts.getRawParameterValue ("GAIN"));
+    smoothedVcaMix.setTargetValue (*apvts.getRawParameterValue ("VCA_MIX"));
+    smoothedVcfMix.setTargetValue (*apvts.getRawParameterValue ("VCF_MIX"));
+    smoothedRevMix.setTargetValue (*apvts.getRawParameterValue ("REV_MIX"));
 
-    int const mode = static_cast<int>(*apvts.getRawParameterValue ("MODE"));
     int const wave = static_cast<int>(*apvts.getRawParameterValue ("WAVE"));
 
     lfo.setWaveform (static_cast<PolyBLEPOscillator::Waveform>(wave));
-
-    juce::dsp::AudioBlock<float> block (buffer);
-    juce::dsp::ProcessContextReplacing<float> context (block);
 
     int const numSamples = buffer.getNumSamples();
     auto* leftChannel = buffer.getWritePointer (0);
     auto* rightChannel = buffer.getWritePointer (1);
 
+    // Stage 1: saturate, apply VCA (tremolo) blend, track modulation for the filter cutoff.
+    float lastUnipolarMod = 0.0f;
+
     for (int sample = 0; sample < numSamples; ++sample)
     {
-        float const currentSpeed = smoothedSpeed.getNextValue();
-        float const currentDepth = smoothedDepth.getNextValue();
-        float const currentBias  = smoothedBias.getNextValue();
-        float const currentGain  = smoothedGain.getNextValue();
+        float const currentSpeed  = smoothedSpeed.getNextValue();
+        float const currentDepth  = smoothedDepth.getNextValue();
+        float const currentBias   = smoothedBias.getNextValue();
+        float const currentGain   = smoothedGain.getNextValue();
+        float const currentVcaMix = smoothedVcaMix.getNextValue();
 
         lfo.setFrequency (currentSpeed);
         lfo.advance();
@@ -107,55 +121,68 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
         float modulation = (lfoSample * currentDepth) + currentBias;
         modulation = juce::jlimit (-1.0f, 1.0f, modulation);
         float const unipolarMod = (modulation + 1.0f) * 0.5f;
+        lastUnipolarMod = unipolarMod;
 
         float const saturatedL = std::tanh (leftChannel[sample] * currentGain);
         float const saturatedR = std::tanh (rightChannel[sample] * currentGain);
 
-        if (mode == 0)
-        {
-            leftChannel[sample]  = saturatedL * unipolarMod;
-            rightChannel[sample] = saturatedR * unipolarMod;
-        }
-        else if (mode == 1)
-        {
-            leftChannel[sample]  = saturatedL;
-            rightChannel[sample] = saturatedR;
-
-            float const targetCutoff = 80.0f * std::pow (2.0f, unipolarMod * 6.5f);
-
-            *bandPassFilter.state = *juce::dsp::IIR::Coefficients<float>::makeBandPass (currentSampleRate, targetCutoff, 2.5f);
-        }
-        else
-        {
-            int const reverseBufferSize = reverseBuffer.getNumSamples();
-
-            reverseBuffer.setSample (0, reverseWritePos, saturatedL);
-            reverseBuffer.setSample (1, reverseWritePos, saturatedR);
-
-            if (reverseChunkRemaining <= 0)
-            {
-                reverseChunkLength = juce::jlimit (32, reverseBufferSize, (int) (currentSampleRate / currentSpeed));
-                reverseChunkStartPos = reverseWritePos;
-                reverseChunkRemaining = reverseChunkLength;
-            }
-
-            int const offset = reverseChunkLength - reverseChunkRemaining;
-            int const readPos = ((reverseChunkStartPos - offset) % reverseBufferSize + reverseBufferSize) % reverseBufferSize;
-
-            float const reversedL = reverseBuffer.getSample (0, readPos);
-            float const reversedR = reverseBuffer.getSample (1, readPos);
-
-            leftChannel[sample]  = juce::jmap (currentDepth, saturatedL, reversedL);
-            rightChannel[sample] = juce::jmap (currentDepth, saturatedR, reversedR);
-
-            --reverseChunkRemaining;
-            reverseWritePos = (reverseWritePos + 1) % reverseBufferSize;
-        }
+        leftChannel[sample]  = juce::jmap (currentVcaMix, saturatedL, saturatedL * unipolarMod);
+        rightChannel[sample] = juce::jmap (currentVcaMix, saturatedR, saturatedR * unipolarMod);
     }
 
-    if (mode == 1)
+    // Coefficients only take effect once, at bandPassFilter.process() below, so compute
+    // them once per block (from the block's final modulation value) instead of per sample.
+    float const targetCutoff = 80.0f * std::pow (2.0f, lastUnipolarMod * 6.5f);
+    *bandPassFilter.state = *juce::dsp::IIR::Coefficients<float>::makeBandPass (currentSampleRate, targetCutoff, 2.5f);
+
+    // Stage 2: VCF (bandpass filter), blended dry/wet against the post-VCA signal.
+    for (int ch = 0; ch < 2; ++ch)
+        vcfDryBuffer.copyFrom (ch, 0, buffer, ch, 0, numSamples);
+
+    juce::dsp::AudioBlock<float> block (buffer);
+    juce::dsp::ProcessContextReplacing<float> context (block);
+    bandPassFilter.process (context);
+
+    auto const* dryLeft  = vcfDryBuffer.getReadPointer (0);
+    auto const* dryRight = vcfDryBuffer.getReadPointer (1);
+
+    for (int sample = 0; sample < numSamples; ++sample)
     {
-        bandPassFilter.process (context);
+        float const currentVcfMix = smoothedVcfMix.getNextValue();
+        float const currentRevMix = smoothedRevMix.getNextValue();
+        float const currentSpeed  = smoothedSpeed.getCurrentValue();
+        float const currentDepth  = smoothedDepth.getCurrentValue();
+
+        float const preRevL = juce::jmap (currentVcfMix, dryLeft[sample],  leftChannel[sample]);
+        float const preRevR = juce::jmap (currentVcfMix, dryRight[sample], rightChannel[sample]);
+
+        // Stage 3: REV (reverse chunks), blended dry/wet against the post-VCF signal.
+        int const reverseBufferSize = reverseBuffer.getNumSamples();
+
+        reverseBuffer.setSample (0, reverseWritePos, preRevL);
+        reverseBuffer.setSample (1, reverseWritePos, preRevR);
+
+        if (reverseChunkRemaining <= 0)
+        {
+            reverseChunkLength = juce::jlimit (32, reverseBufferSize, (int) (currentSampleRate / currentSpeed));
+            reverseChunkStartPos = reverseWritePos;
+            reverseChunkRemaining = reverseChunkLength;
+        }
+
+        int const offset = reverseChunkLength - reverseChunkRemaining;
+        int const readPos = ((reverseChunkStartPos - offset) % reverseBufferSize + reverseBufferSize) % reverseBufferSize;
+
+        float const reversedL = reverseBuffer.getSample (0, readPos);
+        float const reversedR = reverseBuffer.getSample (1, readPos);
+
+        float const revWetL = juce::jmap (currentDepth, preRevL, reversedL);
+        float const revWetR = juce::jmap (currentDepth, preRevR, reversedR);
+
+        leftChannel[sample]  = juce::jmap (currentRevMix, preRevL, revWetL);
+        rightChannel[sample] = juce::jmap (currentRevMix, preRevR, revWetR);
+
+        --reverseChunkRemaining;
+        reverseWritePos = (reverseWritePos + 1) % reverseBufferSize;
     }
 }
 

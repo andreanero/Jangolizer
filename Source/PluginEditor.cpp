@@ -68,15 +68,20 @@ JangolizerAudioProcessorEditor::JangolizerAudioProcessorEditor (JangolizerAudioP
     biasSlider.setRange (-1.0f, 1.0f, 0.01f);
     gainSlider.setRange (1.0f, 10.0f, 0.01f);
 
-    // Setup combo boxes
+    setupSlider (vcaMixSlider, vcaMixLabel, "VCA MIX");
+    setupSlider (vcfMixSlider, vcfMixLabel, "VCF MIX");
+    setupSlider (revMixSlider, revMixLabel, "REV MIX");
+
+    vcaMixSlider.setRange (0.0f, 1.0f, 0.01f);
+    vcfMixSlider.setRange (0.0f, 1.0f, 0.01f);
+    revMixSlider.setRange (0.0f, 1.0f, 0.01f);
+
+    // Setup combo box
     setupComboBox (waveformSelector, waveformLabel, "WAVEFORM");
-    setupComboBox (modeSelector, modeLabel, "MODE");
 
     waveformSelector.addItemList ({"Square", "Triangle", "Sawtooth", "Inv-Sawtooth", "Sine"}, 1);
-    modeSelector.addItemList ({"VCA (Tremolo)", "VCF (Filter)", "REV (Reverse)"}, 1);
 
     waveformSelector.addListener (this);
-    modeSelector.addListener (this);
 
     // Bypass toggle
     bypassButton.setButtonText ("BYPASS");
@@ -97,12 +102,16 @@ JangolizerAudioProcessorEditor::JangolizerAudioProcessorEditor (JangolizerAudioP
         audioProcessor.apvts, "GAIN", gainSlider);
     waveformAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
         audioProcessor.apvts, "WAVE", waveformSelector);
-    modeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
-        audioProcessor.apvts, "MODE", modeSelector);
+    vcaMixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
+        audioProcessor.apvts, "VCA_MIX", vcaMixSlider);
+    vcfMixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
+        audioProcessor.apvts, "VCF_MIX", vcfMixSlider);
+    revMixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
+        audioProcessor.apvts, "REV_MIX", revMixSlider);
     bypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
         audioProcessor.apvts, "BYPASS", bypassButton);
 
-    setSize (800, 680);
+    setSize (800, 740);
 }
 
 JangolizerAudioProcessorEditor::~JangolizerAudioProcessorEditor()
@@ -204,13 +213,17 @@ void JangolizerAudioProcessorEditor::resized()
     biasSlider.setBounds (sliderRow.removeFromLeft (sliderWidth).reduced (5));
     gainSlider.setBounds (sliderRow.removeFromLeft (sliderWidth).reduced (5));
 
-    // Middle section - Selectors
-    auto selectorRow = area.removeFromTop (80);
-    auto leftCol = selectorRow.removeFromLeft (selectorRow.getWidth() / 2).reduced (10);
-    auto rightCol = selectorRow.reduced (10);
+    // Chain mix row - VCA / VCF / REV knobs
+    auto mixRow = area.removeFromTop (120);
+    auto mixWidth = mixRow.getWidth() / 3;
 
-    waveformSelector.setBounds (leftCol.removeFromBottom (30));
-    modeSelector.setBounds (rightCol.removeFromBottom (30));
+    vcaMixSlider.setBounds (mixRow.removeFromLeft (mixWidth).reduced (5));
+    vcfMixSlider.setBounds (mixRow.removeFromLeft (mixWidth).reduced (5));
+    revMixSlider.setBounds (mixRow.removeFromLeft (mixWidth).reduced (5));
+
+    // Middle section - Waveform selector
+    auto selectorRow = area.removeFromTop (40);
+    waveformSelector.setBounds (selectorRow.reduced (10).removeFromBottom (30));
 
     // Bottom - Bypass toggle
     auto bypassRow = area.removeFromTop (30);
@@ -225,7 +238,7 @@ void JangolizerAudioProcessorEditor::sliderValueChanged (juce::Slider* slider)
 
 void JangolizerAudioProcessorEditor::comboBoxChanged (juce::ComboBox* comboBox)
 {
-    if (comboBox == &waveformSelector || comboBox == &modeSelector)
+    if (comboBox == &waveformSelector)
         repaint();
 }
 

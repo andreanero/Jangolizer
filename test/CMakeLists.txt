@@ -47,6 +47,7 @@ target_link_libraries(JangolizerTests PRIVATE
   juce::juce_dsp
   juce::juce_gui_basics
   juce::juce_recommended_config_flags
+  JangolizerBinaryData
 )
 
 include(GoogleTest)

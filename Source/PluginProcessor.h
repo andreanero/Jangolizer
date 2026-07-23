@@ -50,8 +50,13 @@ private:
     juce::LinearSmoothedValue<float> smoothedDepth;
     juce::LinearSmoothedValue<float> smoothedBias;
     juce::LinearSmoothedValue<float> smoothedGain;
+    juce::LinearSmoothedValue<float> smoothedVcaMix;
+    juce::LinearSmoothedValue<float> smoothedVcfMix;
+    juce::LinearSmoothedValue<float> smoothedRevMix;
 
     double currentSampleRate = 44100.0;
+
+    juce::AudioBuffer<float> vcfDryBuffer;
 
     static constexpr double kMaxReverseChunkSeconds = 2.0;
     juce::AudioBuffer<float> reverseBuffer;
