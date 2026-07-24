@@ -42,8 +42,8 @@ private:
     juce::Slider speedSlider, depthSlider, biasSlider, gainSlider;
     juce::Label speedLabel, depthLabel, biasLabel, gainLabel;
 
-    juce::Slider vcaMixSlider, vcfMixSlider, revMixSlider;
-    juce::Label vcaMixLabel, vcfMixLabel, revMixLabel;
+    juce::Slider vcaMixSlider, vcfMixSlider, noiseMixSlider;
+    juce::Label vcaMixLabel, vcfMixLabel, noiseMixLabel;
 
     juce::ComboBox waveformSelector;
     juce::Label waveformLabel;
@@ -58,7 +58,7 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> gainAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vcaMixAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vcfMixAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> revMixAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> noiseMixAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> waveformAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
 
