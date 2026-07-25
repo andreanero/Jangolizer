@@ -70,11 +70,11 @@ JangolizerAudioProcessorEditor::JangolizerAudioProcessorEditor (JangolizerAudioP
 
     setupSlider (vcaMixSlider, vcaMixLabel, "VCA MIX");
     setupSlider (vcfMixSlider, vcfMixLabel, "VCF MIX");
-    setupSlider (revMixSlider, revMixLabel, "REV MIX");
+    setupSlider (noiseMixSlider, noiseMixLabel, "NOISE MIX");
 
     vcaMixSlider.setRange (0.0f, 1.0f, 0.01f);
     vcfMixSlider.setRange (0.0f, 1.0f, 0.01f);
-    revMixSlider.setRange (0.0f, 1.0f, 0.01f);
+    noiseMixSlider.setRange (0.0f, 1.0f, 0.01f);
 
     // Setup combo box
     setupComboBox (waveformSelector, waveformLabel, "WAVEFORM");
@@ -106,8 +106,8 @@ JangolizerAudioProcessorEditor::JangolizerAudioProcessorEditor (JangolizerAudioP
         audioProcessor.apvts, "VCA_MIX", vcaMixSlider);
     vcfMixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
         audioProcessor.apvts, "VCF_MIX", vcfMixSlider);
-    revMixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
-        audioProcessor.apvts, "REV_MIX", revMixSlider);
+    noiseMixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
+        audioProcessor.apvts, "NOISE_MIX", noiseMixSlider);
     bypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
         audioProcessor.apvts, "BYPASS", bypassButton);
 
@@ -219,7 +219,7 @@ void JangolizerAudioProcessorEditor::resized()
 
     vcaMixSlider.setBounds (mixRow.removeFromLeft (mixWidth).reduced (5));
     vcfMixSlider.setBounds (mixRow.removeFromLeft (mixWidth).reduced (5));
-    revMixSlider.setBounds (mixRow.removeFromLeft (mixWidth).reduced (5));
+    noiseMixSlider.setBounds (mixRow.removeFromLeft (mixWidth).reduced (5));
 
     // Middle section - Waveform selector
     auto selectorRow = area.removeFromTop (40);

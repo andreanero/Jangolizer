@@ -8,8 +8,8 @@ This document provides guidance for developers working on the Jangolizer plugin.
 
 Stages run sequentially (not mutually exclusive modes) — each stage blends
 dry/wet via its own mix parameter, so all three can contribute at once.
-Order is chosen for an ambient, dark-folk character (smooth swell first,
-darkened by the filter, smeared last by the reverse stage):
+Order is chosen for an industrial character (smooth swell first, darkened
+by the filter, roughed up last by gated noise grit):
 
 ```
 Audio Input
@@ -22,7 +22,7 @@ Audio Input
     ↓
 [VCF Stage: Bandpass Filter with LFO-controlled cutoff, blend via VCF_MIX]
     ↓
-[REV Stage: SPEED-synced reverse chunks, blend via REV_MIX]
+[NOISE Stage: white noise gated by the LFO envelope, blend via NOISE_MIX]
     ↓
 Audio Output
 
@@ -71,8 +71,8 @@ The heart of the plugin. Inherits from `juce::AudioProcessor`.
    - Advance LFO oscillator
    - Compute modulation signal (LFO × Depth + Bias)
    - Apply input gain + saturation
-   - Apply VCA, VCF, REV stages in sequence, each blended by its own mix
-     parameter (VCA_MIX / VCF_MIX / REV_MIX)
+   - Apply VCA, VCF, NOISE stages in sequence, each blended by its own mix
+     parameter (VCA_MIX / VCF_MIX / NOISE_MIX)
 
 ### 3. **PluginEditor.h / PluginEditor.cpp** (Desktop Only)
 Conditional compilation: **Only compiled when `ELK_HEADLESS=0`**
@@ -177,7 +177,7 @@ layout.add(std::make_unique<juce::AudioParameterChoice>(
 
 Tests live in `test/` (GoogleTest, fetched via CPM) and cover the DSP core
 (`PolyBLEPOscillator`) and the processor (`PluginProcessor`: parameter defaults,
-`processBlock()` output sanity in both VCA/VCF modes, state save/load round-trip).
+`processBlock()` output sanity in VCA/VCF/NOISE modes, state save/load round-trip).
 
 ```bash
 cmake --preset default-with-tests

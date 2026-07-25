@@ -36,7 +36,7 @@ TEST (PluginProcessorTest, ParameterLayoutHasExpectedDefaults)
     EXPECT_EQ (static_cast<int> (*processor.apvts.getRawParameterValue ("WAVE")), 1); // Triangle
     EXPECT_FLOAT_EQ (*processor.apvts.getRawParameterValue ("VCA_MIX"), 1.0f);
     EXPECT_FLOAT_EQ (*processor.apvts.getRawParameterValue ("VCF_MIX"), 0.0f);
-    EXPECT_FLOAT_EQ (*processor.apvts.getRawParameterValue ("REV_MIX"), 0.0f);
+    EXPECT_FLOAT_EQ (*processor.apvts.getRawParameterValue ("NOISE_MIX"), 0.0f);
 }
 
 TEST (PluginProcessorTest, ProcessBlockProducesFiniteBoundedOutputInVcaMode)
@@ -45,7 +45,7 @@ TEST (PluginProcessorTest, ProcessBlockProducesFiniteBoundedOutputInVcaMode)
     processor.prepareToPlay (48000.0, 512);
     setFloatParameter (processor.apvts, "VCA_MIX", 1.0f);
     setFloatParameter (processor.apvts, "VCF_MIX", 0.0f);
-    setFloatParameter (processor.apvts, "REV_MIX", 0.0f);
+    setFloatParameter (processor.apvts, "NOISE_MIX", 0.0f);
 
     auto buffer = makeTestBuffer (2, 512, 0.5f);
     juce::MidiBuffer midi;
@@ -69,7 +69,7 @@ TEST (PluginProcessorTest, ProcessBlockProducesFiniteOutputInVcfMode)
     processor.prepareToPlay (48000.0, 512);
     setFloatParameter (processor.apvts, "VCA_MIX", 0.0f);
     setFloatParameter (processor.apvts, "VCF_MIX", 1.0f);
-    setFloatParameter (processor.apvts, "REV_MIX", 0.0f);
+    setFloatParameter (processor.apvts, "NOISE_MIX", 0.0f);
 
     auto buffer = makeTestBuffer (2, 512, 0.5f);
     juce::MidiBuffer midi;
@@ -86,18 +86,18 @@ TEST (PluginProcessorTest, ProcessBlockProducesFiniteOutputInVcfMode)
     }
 }
 
-TEST (PluginProcessorTest, ProcessBlockProducesFiniteBoundedOutputInRevMode)
+TEST (PluginProcessorTest, ProcessBlockProducesFiniteBoundedOutputInNoiseMode)
 {
     JangolizerAudioProcessor processor;
     processor.prepareToPlay (48000.0, 512);
     setFloatParameter (processor.apvts, "VCA_MIX", 0.0f);
     setFloatParameter (processor.apvts, "VCF_MIX", 0.0f);
-    setFloatParameter (processor.apvts, "REV_MIX", 1.0f);
+    setFloatParameter (processor.apvts, "NOISE_MIX", 1.0f);
 
     auto buffer = makeTestBuffer (2, 512, 0.5f);
     juce::MidiBuffer midi;
 
-    // Run several blocks so the reverse buffer has history to read back from.
+    // Run several blocks so the noise stage has run for a few blocks.
     for (int block = 0; block < 4; ++block)
         processor.processBlock (buffer, midi);
 
@@ -119,7 +119,7 @@ TEST (PluginProcessorTest, ProcessBlockProducesFiniteBoundedOutputWithAllStagesB
     processor.prepareToPlay (48000.0, 512);
     setFloatParameter (processor.apvts, "VCA_MIX", 0.6f);
     setFloatParameter (processor.apvts, "VCF_MIX", 0.5f);
-    setFloatParameter (processor.apvts, "REV_MIX", 0.4f);
+    setFloatParameter (processor.apvts, "NOISE_MIX", 0.4f);
 
     auto buffer = makeTestBuffer (2, 512, 0.5f);
     juce::MidiBuffer midi;

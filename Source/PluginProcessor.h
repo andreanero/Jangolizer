@@ -52,18 +52,14 @@ private:
     juce::LinearSmoothedValue<float> smoothedGain;
     juce::LinearSmoothedValue<float> smoothedVcaMix;
     juce::LinearSmoothedValue<float> smoothedVcfMix;
-    juce::LinearSmoothedValue<float> smoothedRevMix;
+    juce::LinearSmoothedValue<float> smoothedNoiseMix;
+
+    juce::Random noiseRandom;
 
     double currentSampleRate = 44100.0;
 
     juce::AudioBuffer<float> vcfDryBuffer;
-
-    static constexpr double kMaxReverseChunkSeconds = 2.0;
-    juce::AudioBuffer<float> reverseBuffer;
-    int reverseWritePos = 0;
-    int reverseChunkLength = 0;
-    int reverseChunkRemaining = 0;
-    int reverseChunkStartPos = 0;
+    juce::AudioBuffer<float> envelopeBuffer;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JangolizerAudioProcessor)
 };
