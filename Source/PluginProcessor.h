@@ -15,9 +15,7 @@ public:
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
     void processBlock (juce::AudioBuffer<double>&, juce::MidiBuffer&) override { juce::ignoreUnused (this); }
 
-    #if !ELK_HEADLESS
     juce::AudioProcessorEditor* createEditor() override;
-    #endif
     bool hasEditor() const override;
 
     const juce::String getName() const override { return "Jangolizer"; }

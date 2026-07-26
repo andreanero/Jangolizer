@@ -52,3 +52,32 @@ target_link_libraries(JangolizerTests PRIVATE
 
 include(GoogleTest)
 gtest_discover_tests(JangolizerTests)
+
+# Separate binary compiled with ELK_HEADLESS=1, mirroring the elk-headless build's
+# compile definitions. PluginProcessor.cpp doesn't pull in PluginEditor.cpp in this
+# config (see its #if !ELK_HEADLESS include guard), so it isn't listed as a source here.
+add_executable(JangolizerHeadlessTests
+  PluginProcessorHeadlessTests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../Source/PluginProcessor.cpp
+)
+
+target_include_directories(JangolizerHeadlessTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../Source)
+
+target_compile_definitions(JangolizerHeadlessTests PRIVATE
+  JUCE_WEB_BROWSER=0
+  JUCE_USE_CURL=0
+  ELK_HEADLESS=1
+  JUCE_PLUGINHOST_VST=0
+  JUCE_IGNORE_VST3_MISMATCHED_PARAMETER_ID_WARNING=1
+  JucePlugin_VersionString="1.0.0"
+)
+
+target_link_libraries(JangolizerHeadlessTests PRIVATE
+  GTest::gtest_main
+  juce::juce_audio_processors
+  juce::juce_audio_basics
+  juce::juce_dsp
+  juce::juce_recommended_config_flags
+)
+
+gtest_discover_tests(JangolizerHeadlessTests)
