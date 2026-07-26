@@ -54,12 +54,24 @@ cmake --build --preset default --config Debug
 
 Uses whatever Visual Studio version CMake detects on your machine. To pin a generator explicitly, use the `vs` preset (Visual Studio 2026) or `ninja-debug`/`ninja-release` (needs Ninja + MSVC on `PATH`, e.g. from a "Developer PowerShell for VS").
 
-### Headless (Elk Audio OS)
+### Headless (Elk Audio OS, Raspberry Pi 4 / aarch64)
 
-```bash
-cmake --preset elk-headless
-cmake --build --preset elk-headless
-```
+The headless target (`ELK_HEADLESS_BUILD=ON`, `ELK_HEADLESS=1`) strips the GUI (`PluginEditor.cpp`/`.h` and `JangolizerBinaryData` are excluded from the build, see `CMakeLists.txt`) and builds parameter-only, for Elk Audio OS running on a Pi 4. This is a **cross-compile**, not a native build — you need the Elk Pi4 SDK on your host (Linux or WSL) to get the `aarch64-elk-linux` toolchain.
+
+1. Install the Elk Pi4 cross-compilation SDK (`elkpi-sdk-*.sh`, from the [Elk Audio OS releases](https://github.com/elk-audio/elkpi-sdk)). Default install path is `/opt/elk`.
+2. Source the SDK environment in the shell you'll build from (this exports `CC`/`CXX` and, importantly, `OE_CMAKE_TOOLCHAIN_FILE`):
+   ```bash
+   unset LD_LIBRARY_PATH
+   source /opt/elk/<version>/environment-setup-aarch64-elk-linux
+   ```
+3. Configure and build. The `elk-headless` preset picks up `OE_CMAKE_TOOLCHAIN_FILE` from the environment automatically (see `CMakePresets.json`):
+   ```bash
+   cmake --preset elk-headless
+   cmake --build --preset elk-headless
+   ```
+4. Copy the resulting VST3/LV2 artefact from `cmake-build-elk/` to the board (e.g. `scp` into `/udata/sushi/plugins/`) and point Sushi's config at it.
+
+If step 3 fails with an empty/invalid toolchain file path, the SDK environment wasn't sourced in that shell — steps 2 and 3 must run in the same shell session.
 
 ## Project Layout
 
@@ -77,6 +89,12 @@ cmake --build --preset elk-headless
 - WAVEFORM: Square / Triangle / Saw / InvSaw / Sine
 - VCA_MIX / VCF_MIX / REV_MIX: 0.0 – 1.0 — dry/wet blend for each chain stage, applied in order (VCA → VCF → REV)
 - BYPASS: on / off (default on, reset to on every load — not restored from saved state)
+
+## Resources
+
+- [WolfSound](https://thewolfsound.com/) — audio DSP & JUCE tutorials
+- [WolfSound courses](https://thewolfsound.com/courses/) — structured JUCE plugin development courses
+- [Elk Audio OS forum](https://forum.elk.audio/) — Elk Pi4 SDK/Sushi questions and community support
 
 ## License
 

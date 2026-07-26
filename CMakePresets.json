@@ -113,13 +113,15 @@
     },
     {
       "name": "elk-headless",
-      "displayName": "ELK Headless",
-      "description": "Headless build for ELK framework",
+      "displayName": "ELK Headless (Pi 4, aarch64)",
+      "description": "Cross-compiled headless build for Elk Audio OS on Raspberry Pi 4. Requires the Elk Pi4 cross SDK sourced first (see README).",
       "inherits": "release",
+      "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/cmake-build-elk",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "ELK_HEADLESS_BUILD": "ON"
+        "ELK_HEADLESS_BUILD": "ON",
+        "CMAKE_TOOLCHAIN_FILE": "$env{OE_CMAKE_TOOLCHAIN_FILE}"
       }
     }
   ],
