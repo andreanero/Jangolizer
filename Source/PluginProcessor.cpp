@@ -192,12 +192,14 @@ bool JangolizerAudioProcessor::hasEditor() const
     #endif
 }
 
-#if !ELK_HEADLESS
 juce::AudioProcessorEditor* JangolizerAudioProcessor::createEditor()
 {
+    #if ELK_HEADLESS
+    return nullptr;
+    #else
     return new JangolizerAudioProcessorEditor (*this);
+    #endif
 }
-#endif
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
