@@ -47,7 +47,7 @@ TEST (PluginProcessorTest, ProcessBlockProducesFiniteBoundedOutputInVcaMode)
     setFloatParameter (processor.apvts, "VCF_MIX", 0.0f);
     setFloatParameter (processor.apvts, "NOISE_LEVEL", 0.0f);
 
-    auto buffer = makeTestBuffer (2, 512, 0.5f);
+    auto buffer = makeTestBuffer (1, 512, 0.5f);
     juce::MidiBuffer midi;
     processor.processBlock (buffer, midi);
 
@@ -71,7 +71,7 @@ TEST (PluginProcessorTest, ProcessBlockProducesFiniteOutputInVcfMode)
     setFloatParameter (processor.apvts, "VCF_MIX", 1.0f);
     setFloatParameter (processor.apvts, "NOISE_LEVEL", 0.0f);
 
-    auto buffer = makeTestBuffer (2, 512, 0.5f);
+    auto buffer = makeTestBuffer (1, 512, 0.5f);
     juce::MidiBuffer midi;
     processor.processBlock (buffer, midi);
 
@@ -94,7 +94,7 @@ TEST (PluginProcessorTest, ProcessBlockProducesFiniteBoundedOutputInNoiseMode)
     setFloatParameter (processor.apvts, "VCF_MIX", 0.0f);
     setFloatParameter (processor.apvts, "NOISE_LEVEL", 1.0f);
 
-    auto buffer = makeTestBuffer (2, 512, 0.5f);
+    auto buffer = makeTestBuffer (1, 512, 0.5f);
     juce::MidiBuffer midi;
 
     // Run several blocks so the noise stage has run for a few blocks.
@@ -123,7 +123,7 @@ TEST (PluginProcessorTest, ProcessBlockProducesFiniteBoundedOutputWithAllStagesB
     setFloatParameter (processor.apvts, "VCF_MIX", 0.5f);
     setFloatParameter (processor.apvts, "NOISE_LEVEL", 0.4f);
 
-    auto buffer = makeTestBuffer (2, 512, 0.5f);
+    auto buffer = makeTestBuffer (1, 512, 0.5f);
     juce::MidiBuffer midi;
 
     for (int block = 0; block < 4; ++block)

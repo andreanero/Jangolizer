@@ -7,7 +7,7 @@
 ![JUCE](https://img.shields.io/badge/JUCE-8.0.12-orange.svg)
 [![Buy Me a Coffee](https://img.shields.io/badge/PayPal-Buy%20me%20a%20coffee-00457C.svg?logo=paypal)](https://paypal.me/andreaveronese)
 
-Jangolizer is a compact, performance-minded audio effect inspired by circuit‑bent hardware. It provides an anti‑aliased LFO engine, soft saturation/VCA stage, and an LFO‑swept bandpass filter (VCF) driving an internal noise generator into a drone layered on top of the entry signal. The desktop build includes a stylized GUI; the embedded build for Elk Audio OS is headless and parameter-only.
+Jangolizer is a compact, performance-minded audio effect inspired by circuit‑bent hardware. Mono in, mono out (single-channel guitar/instrument source, matching the Elk Audio OS hardware target). It provides an anti‑aliased LFO engine, soft saturation/VCA stage, and an LFO‑swept, resonant bandpass filter (VCF) applied both to the entry signal itself (auto‑wah style) and to an internal noise generator, whose output drones on top of the entry signal. A fixed feedback delay and a final soft-clip add a dark, cavernous sustain suited to industrial/post‑punk/drone playing. The desktop build includes a stylized GUI; the embedded build for Elk Audio OS is headless and parameter-only.
 
 </div>
 
@@ -24,8 +24,9 @@ Dark, industrial look with orange accents, static owl-eyes background artwork (`
 
 - PolyBLEP anti‑aliased oscillator (Square, Triangle, Saw, Inverted Saw, Sine)
 - Wide LFO range (0.1 Hz – 400 Hz) for modulation and ring modulation
-- VCA stage (tremolo/ring) followed by an LFO‑swept bandpass filter shaping an internal white-noise drone, layered additively on top of the entry signal (VCF_MIX shapes raw vs. filtered noise, NOISE_LEVEL sets drone volume)
-- RT‑safe DSP: no allocations in audio thread, parameter smoothing, stereo processing
+- VCA stage (tremolo/ring) followed by an LFO‑swept, near‑self‑oscillating bandpass filter (VCF) applied to the entry signal (auto‑wah sweep) and shaping an internal white-noise drone, layered additively on top of the entry signal (VCF_MIX blends both dry/filtered signal and raw/filtered noise, NOISE_LEVEL sets drone volume)
+- Fixed feedback delay and final soft-clip for a dark, cavernous sustain tail — always on, no dedicated knob
+- RT‑safe DSP: no allocations in audio thread, parameter smoothing, mono processing
 - Desktop GUI + headless Elk Audio OS target
 
 ## Quick Build
@@ -76,9 +77,11 @@ cmake --build --preset elk-headless
 - GAIN: 1.0 – 10.0 (default 1.0)
 - WAVEFORM: Square / Triangle / Saw / InvSaw / Sine
 - VCA_MIX: 0.0 – 1.0 — dry/wet blend of the tremolo stage against the saturated entry signal
-- VCF_MIX: 0.0 – 1.0 — shapes the noise drone itself: raw white noise (0) vs. LFO‑swept bandpass‑filtered noise (1)
+- VCF_MIX: 0.0 – 1.0 — dual-purpose: dry/wet blend of the resonant LFO‑swept filter against the entry signal itself (auto‑wah sweep), AND raw white noise (0) vs. filtered noise (1) for the drone
 - NOISE_LEVEL: 0.0 – 1.0 — volume of the noise drone, added on top of the entry signal (additive, not a crossfade)
 - BYPASS: on / off (default on, reset to on every load — not restored from saved state)
+
+Not exposed as parameters (fixed character of the effect): filter resonance (Q ≈ 9, near self‑oscillating), feedback delay (~0.35s, 40% feedback, 30% wet, always on), and a final soft-clip safety stage.
 
 ## License
 

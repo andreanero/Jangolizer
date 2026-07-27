@@ -42,7 +42,11 @@ private:
     
     using FilterState = juce::dsp::IIR::Coefficients<float>;
     using FilterType = juce::dsp::IIR::Filter<float>;
-    juce::dsp::ProcessorDuplicator<FilterType, FilterState> bandPassFilter;
+    // Two independent filter instances (separate internal state) sharing the same
+    // LFO-swept, resonant coefficients: one carves the entry guitar signal itself
+    // (auto-wah style, blended via VCF_MIX), the other shapes the noise drone.
+    juce::dsp::ProcessorDuplicator<FilterType, FilterState> signalBandPassFilter;
+    juce::dsp::ProcessorDuplicator<FilterType, FilterState> noiseBandPassFilter;
 
     juce::LinearSmoothedValue<float> smoothedSpeed;
     juce::LinearSmoothedValue<float> smoothedDepth;
@@ -58,6 +62,22 @@ private:
 
     juce::AudioBuffer<float> noiseBuffer;
     juce::AudioBuffer<float> noiseDryBuffer;
+    juce::AudioBuffer<float> signalDryBuffer;
+
+    // Noise drone envelope: gated by the stage-1 LFO oscillator (machine pulses with
+    // the tremolo) AND by an envelope follower on the raw input (drone tracks input
+    // loudness), so the drone is never audible as a flat, input-independent hiss.
+    juce::AudioBuffer<float> lfoEnvelopeBuffer;
+    juce::AudioBuffer<float> inputEnvelopeBuffer;
+    float inputEnvelopeState = 0.0f;
+    float inputEnvAttackCoeff = 1.0f;
+    float inputEnvReleaseCoeff = 1.0f;
+
+    // Fixed (non-parameter) mono feedback delay: dark/cavernous sustain tail for
+    // drone and post-punk dub-style washes, always blended in at a modest fixed amount.
+    juce::AudioBuffer<float> delayBuffer;
+    int delayWritePos = 0;
+    int delaySamples = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JangolizerAudioProcessor)
 };
