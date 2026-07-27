@@ -3,9 +3,24 @@
 #include "PluginEditor.h"
 #endif
 
+namespace
+{
+    // Fixed character constants (not exposed as parameters) that push the plugin
+    // toward industrial / post-punk / dark-drone territory: a narrow, near-self-
+    // oscillating filter resonance, and a dark mono feedback delay tail.
+    constexpr float kFilterResonanceQ = 9.0f;
+
+    constexpr float kDelayTimeSeconds = 0.35f;
+    constexpr float kDelayFeedback = 0.4f;
+    constexpr float kDelayWetLevel = 0.3f;
+    constexpr float kMaxDelaySeconds = 1.0f;
+}
+
+// Input is always mono (single-channel guitar/instrument source, incl. the Elk Audio
+// OS hardware target), so both buses are mono — no stereo channel to ever touch.
 JangolizerAudioProcessor::JangolizerAudioProcessor()
-    : AudioProcessor (BusesProperties().withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
-                                       .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
+    : AudioProcessor (BusesProperties().withInput  ("Input",  juce::AudioChannelSet::mono(), true)
+                                       .withOutput ("Output", juce::AudioChannelSet::mono(), true)),
       apvts (*this, nullptr, "PARAMETERS", createParameterLayout())
 {
 }
@@ -38,7 +53,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout JangolizerAudioProcessor::cr
         "VCF_MIX", "VCF Mix", 0.0f, 1.0f, 0.0f));
 
     layout.add (std::make_unique<juce::AudioParameterFloat> (
-        "NOISE_MIX", "Noise Mix", 0.0f, 1.0f, 0.0f));
+        "NOISE_LEVEL", "Noise Drone Level", 0.0f, 1.0f, 0.0f));
 
     layout.add (std::make_unique<juce::AudioParameterBool> (
         "BYPASS", "Bypass", true));
@@ -57,8 +72,10 @@ void JangolizerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
     spec.maximumBlockSize = juce::uint32 (samplesPerBlock);
     spec.numChannels = juce::uint32 (getTotalNumInputChannels());
 
-    bandPassFilter.prepare (spec);
-    bandPassFilter.reset();
+    signalBandPassFilter.prepare (spec);
+    signalBandPassFilter.reset();
+    noiseBandPassFilter.prepare (spec);
+    noiseBandPassFilter.reset();
 
     smoothedSpeed.reset (sampleRate, 0.02);
     smoothedDepth.reset (sampleRate, 0.02);
@@ -66,10 +83,22 @@ void JangolizerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
     smoothedGain.reset  (sampleRate, 0.02);
     smoothedVcaMix.reset (sampleRate, 0.02);
     smoothedVcfMix.reset (sampleRate, 0.02);
-    smoothedNoiseMix.reset (sampleRate, 0.02);
+    smoothedNoiseLevel.reset (sampleRate, 0.02);
 
-    vcfDryBuffer.setSize (2, samplesPerBlock);
-    envelopeBuffer.setSize (1, samplesPerBlock);
+    noiseBuffer.setSize (1, samplesPerBlock);
+    noiseDryBuffer.setSize (1, samplesPerBlock);
+    signalDryBuffer.setSize (1, samplesPerBlock);
+    lfoEnvelopeBuffer.setSize (1, samplesPerBlock);
+    inputEnvelopeBuffer.setSize (1, samplesPerBlock);
+
+    inputEnvelopeState = 0.0f;
+    inputEnvAttackCoeff  = 1.0f - std::exp (-1.0f / (float) (sampleRate * 0.005));
+    inputEnvReleaseCoeff = 1.0f - std::exp (-1.0f / (float) (sampleRate * 0.080));
+
+    delaySamples = juce::jmax (1, (int) (sampleRate * kDelayTimeSeconds));
+    delayBuffer.setSize (1, juce::jmax (1, (int) (sampleRate * kMaxDelaySeconds)));
+    delayBuffer.clear();
+    delayWritePos = 0;
 }
 
 void JangolizerAudioProcessor::releaseResources() {}
@@ -87,20 +116,20 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
     smoothedGain.setTargetValue   (*apvts.getRawParameterValue ("GAIN"));
     smoothedVcaMix.setTargetValue (*apvts.getRawParameterValue ("VCA_MIX"));
     smoothedVcfMix.setTargetValue (*apvts.getRawParameterValue ("VCF_MIX"));
-    smoothedNoiseMix.setTargetValue (*apvts.getRawParameterValue ("NOISE_MIX"));
+    smoothedNoiseLevel.setTargetValue (*apvts.getRawParameterValue ("NOISE_LEVEL"));
 
     int const wave = static_cast<int>(*apvts.getRawParameterValue ("WAVE"));
 
     lfo.setWaveform (static_cast<PolyBLEPOscillator::Waveform>(wave));
 
     int const numSamples = buffer.getNumSamples();
-    auto* leftChannel = buffer.getWritePointer (0);
-    auto* rightChannel = buffer.getWritePointer (1);
+    auto* channelData = buffer.getWritePointer (0);
 
     // Stage 1: saturate, apply VCA (tremolo) blend, track modulation for the filter cutoff
-    // and for the noise stage's envelope.
+    // and for the noise stage's two envelopes (LFO oscillator + input follower).
     float lastUnipolarMod = 0.0f;
-    auto* envelopeWrite = envelopeBuffer.getWritePointer (0);
+    auto* lfoEnvelopeWrite = lfoEnvelopeBuffer.getWritePointer (0);
+    auto* inputEnvelopeWrite = inputEnvelopeBuffer.getWritePointer (0);
 
     for (int sample = 0; sample < numSamples; ++sample)
     {
@@ -118,53 +147,100 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
         modulation = juce::jlimit (-1.0f, 1.0f, modulation);
         float const unipolarMod = (modulation + 1.0f) * 0.5f;
         lastUnipolarMod = unipolarMod;
-        envelopeWrite[sample] = unipolarMod;
+        lfoEnvelopeWrite[sample] = unipolarMod;
 
-        float const saturatedL = std::tanh (leftChannel[sample] * currentGain);
-        float const saturatedR = std::tanh (rightChannel[sample] * currentGain);
+        float const inputAbs = std::abs (channelData[sample]);
+        float const followerCoeff = inputAbs > inputEnvelopeState ? inputEnvAttackCoeff : inputEnvReleaseCoeff;
+        inputEnvelopeState += followerCoeff * (inputAbs - inputEnvelopeState);
+        inputEnvelopeWrite[sample] = inputEnvelopeState;
 
-        leftChannel[sample]  = juce::jmap (currentVcaMix, saturatedL, saturatedL * unipolarMod);
-        rightChannel[sample] = juce::jmap (currentVcaMix, saturatedR, saturatedR * unipolarMod);
+        float const saturated = std::tanh (channelData[sample] * currentGain);
+
+        channelData[sample] = juce::jmap (currentVcaMix, saturated, saturated * unipolarMod);
     }
 
-    // Coefficients only take effect once, at bandPassFilter.process() below, so compute
-    // them once per block (from the block's final modulation value) instead of per sample.
+    // Coefficients only take effect once, at each filter's process() call below, so
+    // compute them once per block (from the block's final modulation value) instead of
+    // per sample. Both filters share the same LFO-swept, narrow/near-self-oscillating
+    // (high Q) coefficients but hold independent internal state.
     float const targetCutoff = 80.0f * std::pow (2.0f, lastUnipolarMod * 6.5f);
-    *bandPassFilter.state = *juce::dsp::IIR::Coefficients<float>::makeBandPass (currentSampleRate, targetCutoff, 2.5f);
+    auto const filterCoeffs = juce::dsp::IIR::Coefficients<float>::makeBandPass (currentSampleRate, targetCutoff, kFilterResonanceQ);
+    *signalBandPassFilter.state = *filterCoeffs;
+    *noiseBandPassFilter.state  = *filterCoeffs;
 
-    // Stage 2: VCF (bandpass filter), blended dry/wet against the post-VCA signal.
-    for (int ch = 0; ch < 2; ++ch)
-        vcfDryBuffer.copyFrom (ch, 0, buffer, ch, 0, numSamples);
+    // Stage 2: VCF applied directly to the entry guitar signal (auto-wah style sweep),
+    // blended dry/wet via VCF_MIX so the resonant filter is only heard as VCF_MIX opens up.
+    signalDryBuffer.copyFrom (0, 0, buffer, 0, 0, numSamples);
 
-    juce::dsp::AudioBlock<float> block (buffer);
-    juce::dsp::ProcessContextReplacing<float> context (block);
-    bandPassFilter.process (context);
+    {
+        juce::dsp::AudioBlock<float> signalBlock (buffer);
+        juce::dsp::ProcessContextReplacing<float> signalContext (signalBlock);
+        signalBandPassFilter.process (signalContext);
+    }
 
-    auto const* dryLeft  = vcfDryBuffer.getReadPointer (0);
-    auto const* dryRight = vcfDryBuffer.getReadPointer (1);
-    auto const* envelopeRead = envelopeBuffer.getReadPointer (0);
+    // Stage 3: noise-fed VCF (bandpass filter) drone. VCF_MIX shapes the drone itself
+    // (raw noise vs. filtered/resonant noise); NOISE_LEVEL sets how loud the drone is
+    // layered on top of the entry signal (additive, entry signal stays untouched).
+    // The drone's amplitude is gated by the LFO oscillator envelope and by an envelope
+    // follower on the input, so it pulses with the oscillator and tracks input loudness
+    // instead of playing as a flat, input-independent hiss.
+    {
+        auto* noiseData = noiseBuffer.getWritePointer (0);
+        for (int sample = 0; sample < numSamples; ++sample)
+            noiseData[sample] = noiseRandom.nextFloat() * 2.0f - 1.0f;
+    }
+
+    noiseDryBuffer.copyFrom (0, 0, noiseBuffer, 0, 0, numSamples);
+
+    {
+        juce::dsp::AudioBlock<float> noiseBlock (noiseBuffer);
+        juce::dsp::ProcessContextReplacing<float> noiseContext (noiseBlock);
+        noiseBandPassFilter.process (noiseContext);
+    }
+
+    // Single mixing pass: both filters have already run over the whole block above, so
+    // VCF_MIX (signal dry/wet + noise raw/filtered) and NOISE_LEVEL are each consumed
+    // from their smoothers exactly once per sample here.
+    auto const* drySignal = signalDryBuffer.getReadPointer (0);
+    auto const* dryNoise = noiseDryBuffer.getReadPointer (0);
+    auto const* filteredNoise = noiseBuffer.getReadPointer (0);
+    auto const* lfoEnvelopeRead = lfoEnvelopeBuffer.getReadPointer (0);
+    auto const* inputEnvelopeRead = inputEnvelopeBuffer.getReadPointer (0);
 
     for (int sample = 0; sample < numSamples; ++sample)
     {
-        float const currentVcfMix   = smoothedVcfMix.getNextValue();
-        float const currentNoiseMix = smoothedNoiseMix.getNextValue();
-        float const currentDepth    = smoothedDepth.getCurrentValue();
+        float const currentVcfMix     = smoothedVcfMix.getNextValue();
+        float const currentNoiseLevel = smoothedNoiseLevel.getNextValue();
 
-        float const preFxL = juce::jmap (currentVcfMix, dryLeft[sample],  leftChannel[sample]);
-        float const preFxR = juce::jmap (currentVcfMix, dryRight[sample], rightChannel[sample]);
+        channelData[sample] = juce::jmap (currentVcfMix, drySignal[sample], channelData[sample]);
 
-        // Stage 3: NOISE (white noise gated by the LFO envelope, machine-hiss grit),
-        // blended dry/wet against the post-VCF signal.
-        float const envelope = envelopeRead[sample];
-        float const noiseL = (noiseRandom.nextFloat() * 2.0f - 1.0f) * envelope;
-        float const noiseR = (noiseRandom.nextFloat() * 2.0f - 1.0f) * envelope;
+        float const drone = juce::jmap (currentVcfMix, dryNoise[sample], filteredNoise[sample]);
+        float const noiseEnvelope = lfoEnvelopeRead[sample] * inputEnvelopeRead[sample];
 
-        float const noiseWetL = juce::jmap (currentDepth, preFxL, noiseL);
-        float const noiseWetR = juce::jmap (currentDepth, preFxR, noiseR);
-
-        leftChannel[sample]  = juce::jmap (currentNoiseMix, preFxL, noiseWetL);
-        rightChannel[sample] = juce::jmap (currentNoiseMix, preFxR, noiseWetR);
+        channelData[sample] += drone * currentNoiseLevel * noiseEnvelope;
     }
+
+    // Stage 4: fixed mono feedback delay (no parameter) for a dark, cavernous sustain
+    // tail suited to drone/post-punk dub washes. Output is added on top (wet, not
+    // crossfaded away from dry).
+    int const delayBufferSize = delayBuffer.getNumSamples();
+    auto* delayData = delayBuffer.getWritePointer (0);
+
+    for (int sample = 0; sample < numSamples; ++sample)
+    {
+        int const readPos = (delayWritePos - delaySamples + delayBufferSize) % delayBufferSize;
+        float const delayed = delayData[readPos];
+
+        delayData[delayWritePos] = channelData[sample] + delayed * kDelayFeedback;
+        channelData[sample] += delayed * kDelayWetLevel;
+
+        delayWritePos = (delayWritePos + 1) % delayBufferSize;
+    }
+
+    // Final safety soft-clip: resonant filters, the additive drone, and the feedback
+    // delay can stack above unity, so tame the combined output before it leaves the plugin.
+    for (int sample = 0; sample < numSamples; ++sample)
+        channelData[sample] = std::tanh (channelData[sample]);
 }
 
 void JangolizerAudioProcessor::getStateInformation (juce::MemoryBlock& destData)

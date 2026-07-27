@@ -7,7 +7,7 @@
 ![JUCE](https://img.shields.io/badge/JUCE-8.0.12-orange.svg)
 [![Buy Me a Coffee](https://img.shields.io/badge/PayPal-Buy%20me%20a%20coffee-00457C.svg?logo=paypal)](https://paypal.me/andreaveronese)
 
-Jangolizer is a compact, performance-minded audio effect inspired by circuit‑bent hardware. It provides an anti‑aliased LFO engine, soft saturation, and a sequential VCA → VCF → NOISE effect chain, each stage blended independently via its own mix knob. The desktop build includes a stylized GUI; the embedded build for Elk Audio OS is headless and parameter-only.
+Jangolizer is a compact, performance-minded audio effect inspired by circuit‑bent hardware. Mono in, mono out (single-channel guitar/instrument source, matching the Elk Audio OS hardware target). It provides an anti‑aliased LFO engine, soft saturation/VCA stage, and an LFO‑swept, resonant bandpass filter (VCF) applied both to the entry signal itself (auto‑wah style) and to an internal noise generator, whose output drones on top of the entry signal. A fixed feedback delay and a final soft-clip add a dark, cavernous sustain suited to industrial/post‑punk/drone playing. The desktop build includes a stylized GUI; the embedded build for Elk Audio OS is headless and parameter-only.
 
 </div>
 
@@ -16,7 +16,7 @@ Jangolizer is a compact, performance-minded audio effect inspired by circuit‑b
 Dark, industrial look with orange accents, static owl-eyes background artwork (`Source/Resources/background.png`, compiled in via JUCE BinaryData):
 - Title banner ("JANGOLIZER") over the background artwork.
 - Four rotary knobs — SPEED, DEPTH, BIAS, GAIN — in a row.
-- WAVEFORM selector plus VCA_MIX, VCF_MIX, NOISE_MIX knobs below the main row.
+- WAVEFORM selector plus VCA_MIX, VCF_MIX, NOISE_LEVEL knobs below the main row.
 - BYPASS toggle below the selectors — on by default every time the plugin loads.
 - Headless (Elk Audio OS) builds omit the UI entirely; only the parameters remain.
 
@@ -24,8 +24,9 @@ Dark, industrial look with orange accents, static owl-eyes background artwork (`
 
 - PolyBLEP anti‑aliased oscillator (Square, Triangle, Saw, Inverted Saw, Sine)
 - Wide LFO range (0.1 Hz – 400 Hz) for modulation and ring modulation
-- Sequential VCA → VCF → NOISE chain (tremolo/ring → LFO‑modulated bandpass → envelope‑gated white noise grit), each stage independently blendable
-- RT‑safe DSP: no allocations in audio thread, parameter smoothing, stereo processing
+- VCA stage (tremolo/ring) followed by an LFO‑swept, near‑self‑oscillating bandpass filter (VCF) applied to the entry signal (auto‑wah sweep) and shaping an internal white-noise drone, layered additively on top of the entry signal (VCF_MIX blends both dry/filtered signal and raw/filtered noise, NOISE_LEVEL sets drone volume)
+- Fixed feedback delay and final soft-clip for a dark, cavernous sustain tail — always on, no dedicated knob
+- RT‑safe DSP: no allocations in audio thread, parameter smoothing, mono processing
 - Desktop GUI + headless Elk Audio OS target
 
 ## Quick Build
@@ -70,13 +71,17 @@ cmake --build --preset elk-headless
 
 ## Parameters
 
-- SPEED: 0.1 – 400 Hz (default 5 Hz) — LFO rate for VCA/VCF/NOISE stages (noise is gated by the same LFO envelope)
-- DEPTH: 0.0 – 1.0 (default 0.7) — modulation depth for VCA/VCF stages, dry/noise mix inside the NOISE stage
+- SPEED: 0.1 – 400 Hz (default 5 Hz) — LFO rate driving the VCA tremolo and the VCF cutoff sweep
+- DEPTH: 0.0 – 1.0 (default 0.7) — modulation depth for the VCA/VCF LFO
 - BIAS: -1.0 – 1.0 (default 0.0)
 - GAIN: 1.0 – 10.0 (default 1.0)
 - WAVEFORM: Square / Triangle / Saw / InvSaw / Sine
-- VCA_MIX / VCF_MIX / NOISE_MIX: 0.0 – 1.0 — dry/wet blend for each chain stage, applied in order (VCA → VCF → NOISE)
+- VCA_MIX: 0.0 – 1.0 — dry/wet blend of the tremolo stage against the saturated entry signal
+- VCF_MIX: 0.0 – 1.0 — dual-purpose: dry/wet blend of the resonant LFO‑swept filter against the entry signal itself (auto‑wah sweep), AND raw white noise (0) vs. filtered noise (1) for the drone
+- NOISE_LEVEL: 0.0 – 1.0 — volume of the noise drone, added on top of the entry signal (additive, not a crossfade)
 - BYPASS: on / off (default on, reset to on every load — not restored from saved state)
+
+Not exposed as parameters (fixed character of the effect): filter resonance (Q ≈ 9, near self‑oscillating), feedback delay (~0.35s, 40% feedback, 30% wet, always on), and a final soft-clip safety stage.
 
 ## License
 

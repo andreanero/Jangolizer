@@ -70,11 +70,11 @@ JangolizerAudioProcessorEditor::JangolizerAudioProcessorEditor (JangolizerAudioP
 
     setupSlider (vcaMixSlider, vcaMixLabel, "VCA MIX");
     setupSlider (vcfMixSlider, vcfMixLabel, "VCF MIX");
-    setupSlider (noiseMixSlider, noiseMixLabel, "NOISE MIX");
+    setupSlider (noiseLevelSlider, noiseLevelLabel, "NOISE LEVEL");
 
     vcaMixSlider.setRange (0.0f, 1.0f, 0.01f);
     vcfMixSlider.setRange (0.0f, 1.0f, 0.01f);
-    noiseMixSlider.setRange (0.0f, 1.0f, 0.01f);
+    noiseLevelSlider.setRange (0.0f, 1.0f, 0.01f);
 
     // Setup combo box
     setupComboBox (waveformSelector, waveformLabel, "WAVEFORM");
@@ -106,8 +106,8 @@ JangolizerAudioProcessorEditor::JangolizerAudioProcessorEditor (JangolizerAudioP
         audioProcessor.apvts, "VCA_MIX", vcaMixSlider);
     vcfMixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
         audioProcessor.apvts, "VCF_MIX", vcfMixSlider);
-    noiseMixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
-        audioProcessor.apvts, "NOISE_MIX", noiseMixSlider);
+    noiseLevelAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
+        audioProcessor.apvts, "NOISE_LEVEL", noiseLevelSlider);
     bypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
         audioProcessor.apvts, "BYPASS", bypassButton);
 
@@ -213,13 +213,13 @@ void JangolizerAudioProcessorEditor::resized()
     biasSlider.setBounds (sliderRow.removeFromLeft (sliderWidth).reduced (5));
     gainSlider.setBounds (sliderRow.removeFromLeft (sliderWidth).reduced (5));
 
-    // Chain mix row - VCA / VCF / REV knobs
+    // Chain mix row - VCA / VCF / NOISE knobs
     auto mixRow = area.removeFromTop (120);
     auto mixWidth = mixRow.getWidth() / 3;
 
     vcaMixSlider.setBounds (mixRow.removeFromLeft (mixWidth).reduced (5));
     vcfMixSlider.setBounds (mixRow.removeFromLeft (mixWidth).reduced (5));
-    noiseMixSlider.setBounds (mixRow.removeFromLeft (mixWidth).reduced (5));
+    noiseLevelSlider.setBounds (mixRow.removeFromLeft (mixWidth).reduced (5));
 
     // Middle section - Waveform selector
     auto selectorRow = area.removeFromTop (40);

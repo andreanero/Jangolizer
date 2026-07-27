@@ -36,7 +36,7 @@ TEST (PluginProcessorTest, ParameterLayoutHasExpectedDefaults)
     EXPECT_EQ (static_cast<int> (*processor.apvts.getRawParameterValue ("WAVE")), 1); // Triangle
     EXPECT_FLOAT_EQ (*processor.apvts.getRawParameterValue ("VCA_MIX"), 1.0f);
     EXPECT_FLOAT_EQ (*processor.apvts.getRawParameterValue ("VCF_MIX"), 0.0f);
-    EXPECT_FLOAT_EQ (*processor.apvts.getRawParameterValue ("NOISE_MIX"), 0.0f);
+    EXPECT_FLOAT_EQ (*processor.apvts.getRawParameterValue ("NOISE_LEVEL"), 0.0f);
 }
 
 TEST (PluginProcessorTest, ProcessBlockProducesFiniteBoundedOutputInVcaMode)
@@ -45,9 +45,9 @@ TEST (PluginProcessorTest, ProcessBlockProducesFiniteBoundedOutputInVcaMode)
     processor.prepareToPlay (48000.0, 512);
     setFloatParameter (processor.apvts, "VCA_MIX", 1.0f);
     setFloatParameter (processor.apvts, "VCF_MIX", 0.0f);
-    setFloatParameter (processor.apvts, "NOISE_MIX", 0.0f);
+    setFloatParameter (processor.apvts, "NOISE_LEVEL", 0.0f);
 
-    auto buffer = makeTestBuffer (2, 512, 0.5f);
+    auto buffer = makeTestBuffer (1, 512, 0.5f);
     juce::MidiBuffer midi;
     processor.processBlock (buffer, midi);
 
@@ -69,9 +69,9 @@ TEST (PluginProcessorTest, ProcessBlockProducesFiniteOutputInVcfMode)
     processor.prepareToPlay (48000.0, 512);
     setFloatParameter (processor.apvts, "VCA_MIX", 0.0f);
     setFloatParameter (processor.apvts, "VCF_MIX", 1.0f);
-    setFloatParameter (processor.apvts, "NOISE_MIX", 0.0f);
+    setFloatParameter (processor.apvts, "NOISE_LEVEL", 0.0f);
 
-    auto buffer = makeTestBuffer (2, 512, 0.5f);
+    auto buffer = makeTestBuffer (1, 512, 0.5f);
     juce::MidiBuffer midi;
     processor.processBlock (buffer, midi);
 
@@ -92,15 +92,17 @@ TEST (PluginProcessorTest, ProcessBlockProducesFiniteBoundedOutputInNoiseMode)
     processor.prepareToPlay (48000.0, 512);
     setFloatParameter (processor.apvts, "VCA_MIX", 0.0f);
     setFloatParameter (processor.apvts, "VCF_MIX", 0.0f);
-    setFloatParameter (processor.apvts, "NOISE_MIX", 1.0f);
+    setFloatParameter (processor.apvts, "NOISE_LEVEL", 1.0f);
 
-    auto buffer = makeTestBuffer (2, 512, 0.5f);
+    auto buffer = makeTestBuffer (1, 512, 0.5f);
     juce::MidiBuffer midi;
 
     // Run several blocks so the noise stage has run for a few blocks.
     for (int block = 0; block < 4; ++block)
         processor.processBlock (buffer, midi);
 
+    // NOISE_LEVEL is additive (drone layered on top of the entry signal, not
+    // crossfaded), so the bound is entry (<=1) + raw noise (<=1) rather than 1.
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
     {
         auto const* data = buffer.getReadPointer (ch);
@@ -108,7 +110,7 @@ TEST (PluginProcessorTest, ProcessBlockProducesFiniteBoundedOutputInNoiseMode)
         {
             ASSERT_FALSE (std::isnan (data[i]));
             ASSERT_FALSE (std::isinf (data[i]));
-            ASSERT_LE (std::abs (data[i]), 1.0001f);
+            ASSERT_LE (std::abs (data[i]), 2.0001f);
         }
     }
 }
@@ -119,9 +121,9 @@ TEST (PluginProcessorTest, ProcessBlockProducesFiniteBoundedOutputWithAllStagesB
     processor.prepareToPlay (48000.0, 512);
     setFloatParameter (processor.apvts, "VCA_MIX", 0.6f);
     setFloatParameter (processor.apvts, "VCF_MIX", 0.5f);
-    setFloatParameter (processor.apvts, "NOISE_MIX", 0.4f);
+    setFloatParameter (processor.apvts, "NOISE_LEVEL", 0.4f);
 
-    auto buffer = makeTestBuffer (2, 512, 0.5f);
+    auto buffer = makeTestBuffer (1, 512, 0.5f);
     juce::MidiBuffer midi;
 
     for (int block = 0; block < 4; ++block)
