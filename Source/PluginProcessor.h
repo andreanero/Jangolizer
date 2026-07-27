@@ -50,14 +50,14 @@ private:
     juce::LinearSmoothedValue<float> smoothedGain;
     juce::LinearSmoothedValue<float> smoothedVcaMix;
     juce::LinearSmoothedValue<float> smoothedVcfMix;
-    juce::LinearSmoothedValue<float> smoothedNoiseMix;
+    juce::LinearSmoothedValue<float> smoothedNoiseLevel;
 
     juce::Random noiseRandom;
 
     double currentSampleRate = 44100.0;
 
-    juce::AudioBuffer<float> vcfDryBuffer;
-    juce::AudioBuffer<float> envelopeBuffer;
+    juce::AudioBuffer<float> noiseBuffer;
+    juce::AudioBuffer<float> noiseDryBuffer;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JangolizerAudioProcessor)
 };

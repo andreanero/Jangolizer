@@ -6,10 +6,9 @@ This document provides guidance for developers working on the Jangolizer plugin.
 
 ### Signal Flow
 
-Stages run sequentially (not mutually exclusive modes) — each stage blends
-dry/wet via its own mix parameter, so all three can contribute at once.
-Order is chosen for an industrial character (smooth swell first, darkened
-by the filter, roughed up last by gated noise grit):
+The VCA stage processes the actual entry signal; the VCF stage instead
+processes an internally generated noise source, and the result is added
+(not crossfaded) on top of the VCA'd entry signal as a drone layer:
 
 ```
 Audio Input
@@ -20,11 +19,13 @@ Audio Input
     ↓
 [VCA Stage: Multiply by LFO, blend via VCA_MIX]
     ↓
-[VCF Stage: Bandpass Filter with LFO-controlled cutoff, blend via VCF_MIX]
-    ↓
-[NOISE Stage: white noise gated by the LFO envelope, blend via NOISE_MIX]
-    ↓
-Audio Output
+    +──────────────────────────────────────────────┐
+    ↓                                               ↑
+Audio Output                          [× NOISE_LEVEL, added in]
+                                                     ↑
+                          [VCF Stage: white noise through an
+                           LFO-cutoff bandpass filter, blend
+                           raw↔filtered noise via VCF_MIX]
 
 Parallel to audio path:
 [LFO Generator (PolyBLEP)]
@@ -33,8 +34,10 @@ Parallel to audio path:
     └─→ Apply Bias (DC offset)
 ```
 
-Swap VCA/VCF ordering for a more industrial feel (filter grit before the
-gate) — the LFO and saturation stages stay shared across all three.
+The noise generator, not the entry signal, is what feeds the bandpass
+filter — VCF_MIX shapes the drone's own timbre (broadband noise vs.
+narrow resonant tone), while NOISE_LEVEL is a separate additive volume
+knob so the drone can sit under the entry signal without attenuating it.
 
 ## Core Components
 
@@ -71,8 +74,10 @@ The heart of the plugin. Inherits from `juce::AudioProcessor`.
    - Advance LFO oscillator
    - Compute modulation signal (LFO × Depth + Bias)
    - Apply input gain + saturation
-   - Apply VCA, VCF, NOISE stages in sequence, each blended by its own mix
-     parameter (VCA_MIX / VCF_MIX / NOISE_MIX)
+   - Apply VCA stage to the entry signal (blend via VCA_MIX)
+   - Generate noise, run it through the VCF bandpass filter, blend
+     raw↔filtered noise via VCF_MIX, then add the result to the entry
+     signal scaled by NOISE_LEVEL (additive, not a crossfade)
 
 ### 3. **PluginEditor.h / PluginEditor.cpp** (Desktop Only)
 Conditional compilation: **Only compiled when `ELK_HEADLESS=0`**
