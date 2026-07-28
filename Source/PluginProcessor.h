@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include "PolyBLEPOscillator.h"
@@ -36,6 +37,10 @@ public:
     juce::AudioProcessorValueTreeState apvts;
 
 private:
+    // BusesProperties is protected on juce::AudioProcessor, so this must be a member
+    // (not a free function) to be allowed to construct one.
+    static BusesProperties makeBusesProperties();
+
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
     PolyBLEPOscillator lfo;
@@ -56,25 +61,35 @@ private:
     juce::LinearSmoothedValue<float> smoothedVcfMix;
     juce::LinearSmoothedValue<float> smoothedNoiseLevel;
 
-    juce::Random noiseRandom;
+    // One independent RNG per channel: on the stereo (desktop) build this decorrelates
+    // the L/R noise drone into a real stereo image instead of a duplicated-mono hiss.
+    // On the mono (Elk) build only index 0 is ever touched.
+    std::array<juce::Random, 2> noiseRandom;
 
     double currentSampleRate = 44100.0;
 
+    // Per-channel: sized to the bus's channel count (1 on Elk, 2 on desktop) in
+    // prepareToPlay. Filters are excluded — dsp::IIR::Filter already keeps independent
+    // per-channel state internally once prepared with the right spec.numChannels.
     juce::AudioBuffer<float> noiseBuffer;
     juce::AudioBuffer<float> noiseDryBuffer;
     juce::AudioBuffer<float> signalDryBuffer;
 
     // Noise drone envelope: gated by the stage-1 LFO oscillator (machine pulses with
-    // the tremolo) AND by an envelope follower on the raw input (drone tracks input
-    // loudness), so the drone is never audible as a flat, input-independent hiss.
+    // the tremolo, a shared mono control signal — not audio, so no per-channel copy
+    // needed) AND by a per-channel envelope follower on that channel's own raw input
+    // (drone tracks each channel's own loudness), so the drone is never audible as a
+    // flat, input-independent hiss.
     juce::AudioBuffer<float> lfoEnvelopeBuffer;
     juce::AudioBuffer<float> inputEnvelopeBuffer;
-    float inputEnvelopeState = 0.0f;
+    std::array<float, 2> inputEnvelopeState { 0.0f, 0.0f };
     float inputEnvAttackCoeff = 1.0f;
     float inputEnvReleaseCoeff = 1.0f;
 
-    // Fixed (non-parameter) mono feedback delay: dark/cavernous sustain tail for
+    // Fixed (non-parameter) per-channel feedback delay: dark/cavernous sustain tail for
     // drone and post-punk dub-style washes, always blended in at a modest fixed amount.
+    // Read/write position is shared (same delay time both channels advance together);
+    // only the delay line contents themselves are per-channel.
     juce::AudioBuffer<float> delayBuffer;
     int delayWritePos = 0;
     int delaySamples = 0;
