@@ -140,6 +140,45 @@ TEST (PluginProcessorTest, ProcessBlockProducesFiniteBoundedOutputWithAllStagesB
     }
 }
 
+// Desktop build's bus is stereo (Elk stays mono; see makeBusesProperties() in
+// PluginProcessor.cpp). Each channel must get its own noise/envelope/delay state, so
+// feeding the same input on both channels should still decorrelate the noise drone
+// into an actual stereo image rather than a duplicated-mono signal.
+TEST (PluginProcessorTest, ProcessBlockDecorrelatesStereoChannelsInNoiseMode)
+{
+    JangolizerAudioProcessor processor;
+    processor.prepareToPlay (48000.0, 512);
+    setFloatParameter (processor.apvts, "BYPASS", 0.0f);
+    setFloatParameter (processor.apvts, "VCA_MIX", 0.0f);
+    setFloatParameter (processor.apvts, "VCF_MIX", 0.0f);
+    setFloatParameter (processor.apvts, "NOISE_LEVEL", 1.0f);
+
+    auto buffer = makeTestBuffer (2, 512, 0.5f);
+    juce::MidiBuffer midi;
+
+    for (int block = 0; block < 4; ++block)
+        processor.processBlock (buffer, midi);
+
+    auto const* left = buffer.getReadPointer (0);
+    auto const* right = buffer.getReadPointer (1);
+
+    bool channelsDiffer = false;
+    for (int i = 0; i < buffer.getNumSamples(); ++i)
+    {
+        ASSERT_FALSE (std::isnan (left[i]));
+        ASSERT_FALSE (std::isnan (right[i]));
+        ASSERT_FALSE (std::isinf (left[i]));
+        ASSERT_FALSE (std::isinf (right[i]));
+        ASSERT_LE (std::abs (left[i]), 2.0001f);
+        ASSERT_LE (std::abs (right[i]), 2.0001f);
+
+        if (std::abs (left[i] - right[i]) > 1.0e-6f)
+            channelsDiffer = true;
+    }
+
+    EXPECT_TRUE (channelsDiffer);
+}
+
 TEST (PluginProcessorTest, StateRoundTripsThroughGetAndSetStateInformation)
 {
     JangolizerAudioProcessor processor;

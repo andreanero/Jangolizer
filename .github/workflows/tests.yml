@@ -45,7 +45,7 @@ jobs:
         run: cmake --preset ninja-debug
 
       - name: Build tests
-        run: cmake --build --preset ninja-debug --target JangolizerTests
+        run: cmake --build --preset ninja-debug --target JangolizerTests JangolizerHeadlessTests
 
       - name: Run tests
         run: ctest --preset ninja-debug
@@ -72,7 +72,7 @@ jobs:
         run: cmake --preset ninja-debug
 
       - name: Build tests
-        run: cmake --build --preset ninja-debug --target JangolizerTests
+        run: cmake --build --preset ninja-debug --target JangolizerTests JangolizerHeadlessTests
 
       - name: Run tests
         run: ctest --preset ninja-debug

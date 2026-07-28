@@ -16,11 +16,23 @@ namespace
     constexpr float kMaxDelaySeconds = 1.0f;
 }
 
-// Input is always mono (single-channel guitar/instrument source, incl. the Elk Audio
-// OS hardware target), so both buses are mono — no stereo channel to ever touch.
+// Elk Audio OS's hardware I/O is a single-channel guitar/instrument source, so that
+// build stays mono in/out. Everywhere else (desktop DAWs on Windows/macOS) runs
+// stereo, with each channel processed through fully independent state (see the
+// per-channel members in PluginProcessor.h) — no L/R mixing/crosstalk in the DSP.
+JangolizerAudioProcessor::BusesProperties JangolizerAudioProcessor::makeBusesProperties()
+{
+#if ELK_HEADLESS
+    auto const channels = juce::AudioChannelSet::mono();
+#else
+    auto const channels = juce::AudioChannelSet::stereo();
+#endif
+    return BusesProperties().withInput  ("Input",  channels, true)
+                             .withOutput ("Output", channels, true);
+}
+
 JangolizerAudioProcessor::JangolizerAudioProcessor()
-    : AudioProcessor (BusesProperties().withInput  ("Input",  juce::AudioChannelSet::mono(), true)
-                                       .withOutput ("Output", juce::AudioChannelSet::mono(), true)),
+    : AudioProcessor (makeBusesProperties()),
       apvts (*this, nullptr, "PARAMETERS", createParameterLayout())
 {
 }
@@ -85,18 +97,20 @@ void JangolizerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
     smoothedVcfMix.reset (sampleRate, 0.02);
     smoothedNoiseLevel.reset (sampleRate, 0.02);
 
-    noiseBuffer.setSize (1, samplesPerBlock);
-    noiseDryBuffer.setSize (1, samplesPerBlock);
-    signalDryBuffer.setSize (1, samplesPerBlock);
-    lfoEnvelopeBuffer.setSize (1, samplesPerBlock);
-    inputEnvelopeBuffer.setSize (1, samplesPerBlock);
+    int const numChannels = getTotalNumInputChannels();
 
-    inputEnvelopeState = 0.0f;
+    noiseBuffer.setSize (numChannels, samplesPerBlock);
+    noiseDryBuffer.setSize (numChannels, samplesPerBlock);
+    signalDryBuffer.setSize (numChannels, samplesPerBlock);
+    lfoEnvelopeBuffer.setSize (1, samplesPerBlock);
+    inputEnvelopeBuffer.setSize (numChannels, samplesPerBlock);
+
+    inputEnvelopeState.fill (0.0f);
     inputEnvAttackCoeff  = 1.0f - std::exp (-1.0f / (float) (sampleRate * 0.005));
     inputEnvReleaseCoeff = 1.0f - std::exp (-1.0f / (float) (sampleRate * 0.080));
 
     delaySamples = juce::jmax (1, (int) (sampleRate * kDelayTimeSeconds));
-    delayBuffer.setSize (1, juce::jmax (1, (int) (sampleRate * kMaxDelaySeconds)));
+    delayBuffer.setSize (numChannels, juce::jmax (1, (int) (sampleRate * kMaxDelaySeconds)));
     delayBuffer.clear();
     delayWritePos = 0;
 }
@@ -123,13 +137,33 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
     lfo.setWaveform (static_cast<PolyBLEPOscillator::Waveform>(wave));
 
     int const numSamples = buffer.getNumSamples();
-    auto* channelData = buffer.getWritePointer (0);
+    int const numChannels = buffer.getNumChannels();
 
     // Stage 1: saturate, apply VCA (tremolo) blend, track modulation for the filter cutoff
-    // and for the noise stage's two envelopes (LFO oscillator + input follower).
+    // and for the noise stage's two envelopes (LFO oscillator + input follower). The dry
+    // signal snapshot and the raw noise (both needed pre-filter, further down) are written
+    // inline here too: same values as a post-loop copy/generate pass would produce, just
+    // without the extra full-buffer traversals. The LFO/modulation is a single shared
+    // control signal (computed once, not per channel); everything channel-specific
+    // (input envelope, noise RNG, dry snapshots) runs through per-channel state instead,
+    // so stereo channels never mix or influence each other.
     float lastUnipolarMod = 0.0f;
     auto* lfoEnvelopeWrite = lfoEnvelopeBuffer.getWritePointer (0);
-    auto* inputEnvelopeWrite = inputEnvelopeBuffer.getWritePointer (0);
+
+    std::array<float*, 2> channelWritePtrs {};
+    std::array<float*, 2> inputEnvelopeWritePtrs {};
+    std::array<float*, 2> signalDryWritePtrs {};
+    std::array<float*, 2> noiseWritePtrs {};
+    std::array<float*, 2> noiseDryWritePtrs {};
+
+    for (int channel = 0; channel < numChannels; ++channel)
+    {
+        channelWritePtrs[channel]       = buffer.getWritePointer (channel);
+        inputEnvelopeWritePtrs[channel] = inputEnvelopeBuffer.getWritePointer (channel);
+        signalDryWritePtrs[channel]     = signalDryBuffer.getWritePointer (channel);
+        noiseWritePtrs[channel]         = noiseBuffer.getWritePointer (channel);
+        noiseDryWritePtrs[channel]      = noiseDryBuffer.getWritePointer (channel);
+    }
 
     for (int sample = 0; sample < numSamples; ++sample)
     {
@@ -149,14 +183,24 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
         lastUnipolarMod = unipolarMod;
         lfoEnvelopeWrite[sample] = unipolarMod;
 
-        float const inputAbs = std::abs (channelData[sample]);
-        float const followerCoeff = inputAbs > inputEnvelopeState ? inputEnvAttackCoeff : inputEnvReleaseCoeff;
-        inputEnvelopeState += followerCoeff * (inputAbs - inputEnvelopeState);
-        inputEnvelopeWrite[sample] = inputEnvelopeState;
+        for (int channel = 0; channel < numChannels; ++channel)
+        {
+            auto* channelData = channelWritePtrs[channel];
 
-        float const saturated = std::tanh (channelData[sample] * currentGain);
+            float const inputAbs = std::abs (channelData[sample]);
+            float const followerCoeff = inputAbs > inputEnvelopeState[channel] ? inputEnvAttackCoeff : inputEnvReleaseCoeff;
+            inputEnvelopeState[channel] += followerCoeff * (inputAbs - inputEnvelopeState[channel]);
+            inputEnvelopeWritePtrs[channel][sample] = inputEnvelopeState[channel];
 
-        channelData[sample] = juce::jmap (currentVcaMix, saturated, saturated * unipolarMod);
+            float const saturated = std::tanh (channelData[sample] * currentGain);
+
+            channelData[sample] = juce::jmap (currentVcaMix, saturated, saturated * unipolarMod);
+            signalDryWritePtrs[channel][sample] = channelData[sample];
+
+            float const noiseSample = noiseRandom[channel].nextFloat() * 2.0f - 1.0f;
+            noiseWritePtrs[channel][sample] = noiseSample;
+            noiseDryWritePtrs[channel][sample] = noiseSample;
+        }
     }
 
     // Coefficients only take effect once, at each filter's process() call below, so
@@ -170,8 +214,6 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
 
     // Stage 2: VCF applied directly to the entry guitar signal (auto-wah style sweep),
     // blended dry/wet via VCF_MIX so the resonant filter is only heard as VCF_MIX opens up.
-    signalDryBuffer.copyFrom (0, 0, buffer, 0, 0, numSamples);
-
     {
         juce::dsp::AudioBlock<float> signalBlock (buffer);
         juce::dsp::ProcessContextReplacing<float> signalContext (signalBlock);
@@ -185,62 +227,70 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
     // follower on the input, so it pulses with the oscillator and tracks input loudness
     // instead of playing as a flat, input-independent hiss.
     {
-        auto* noiseData = noiseBuffer.getWritePointer (0);
-        for (int sample = 0; sample < numSamples; ++sample)
-            noiseData[sample] = noiseRandom.nextFloat() * 2.0f - 1.0f;
-    }
-
-    noiseDryBuffer.copyFrom (0, 0, noiseBuffer, 0, 0, numSamples);
-
-    {
-        juce::dsp::AudioBlock<float> noiseBlock (noiseBuffer);
+        // noiseBuffer/delayBuffer are sized to the bus's max channel count (prepareToPlay),
+        // which can exceed this block's actual channel count (e.g. a mono buffer fed
+        // through the stereo desktop build in a test) — subset to the channels in play.
+        auto noiseBlock = juce::dsp::AudioBlock<float> (noiseBuffer).getSubsetChannelBlock (0, (size_t) numChannels);
         juce::dsp::ProcessContextReplacing<float> noiseContext (noiseBlock);
         noiseBandPassFilter.process (noiseContext);
     }
 
-    // Single mixing pass: both filters have already run over the whole block above, so
-    // VCF_MIX (signal dry/wet + noise raw/filtered) and NOISE_LEVEL are each consumed
-    // from their smoothers exactly once per sample here.
-    auto const* drySignal = signalDryBuffer.getReadPointer (0);
-    auto const* dryNoise = noiseDryBuffer.getReadPointer (0);
-    auto const* filteredNoise = noiseBuffer.getReadPointer (0);
+    // Single fused pass over the block: mixing (VCF_MIX signal dry/wet + noise raw/filtered,
+    // NOISE_LEVEL), the fixed per-channel feedback delay (stage 4 — dark/cavernous sustain
+    // tail, wet added on top, not crossfaded away from dry), and the final safety soft-clip
+    // (resonant filters + additive drone + delay can stack above unity). Each stage only
+    // touches the current sample's already-finalized value, so folding them into one loop
+    // is the same per-sample operation order as three separate passes, just one traversal.
+    // VCF_MIX/NOISE_LEVEL and the delay read/write position are shared across channels
+    // (same knob, same delay time); only the buffer contents themselves are per-channel.
     auto const* lfoEnvelopeRead = lfoEnvelopeBuffer.getReadPointer (0);
-    auto const* inputEnvelopeRead = inputEnvelopeBuffer.getReadPointer (0);
+    int const delayBufferSize = delayBuffer.getNumSamples();
+
+    std::array<float const*, 2> drySignalPtrs {};
+    std::array<float const*, 2> dryNoisePtrs {};
+    std::array<float const*, 2> filteredNoisePtrs {};
+    std::array<float const*, 2> inputEnvelopeReadPtrs {};
+    std::array<float*, 2> delayWritePtrs {};
+
+    for (int channel = 0; channel < numChannels; ++channel)
+    {
+        drySignalPtrs[channel]         = signalDryBuffer.getReadPointer (channel);
+        dryNoisePtrs[channel]          = noiseDryBuffer.getReadPointer (channel);
+        filteredNoisePtrs[channel]     = noiseBuffer.getReadPointer (channel);
+        inputEnvelopeReadPtrs[channel] = inputEnvelopeBuffer.getReadPointer (channel);
+        delayWritePtrs[channel]        = delayBuffer.getWritePointer (channel);
+    }
 
     for (int sample = 0; sample < numSamples; ++sample)
     {
         float const currentVcfMix     = smoothedVcfMix.getNextValue();
         float const currentNoiseLevel = smoothedNoiseLevel.getNextValue();
+        float const lfoEnvelopeValue  = lfoEnvelopeRead[sample];
 
-        channelData[sample] = juce::jmap (currentVcfMix, drySignal[sample], channelData[sample]);
-
-        float const drone = juce::jmap (currentVcfMix, dryNoise[sample], filteredNoise[sample]);
-        float const noiseEnvelope = lfoEnvelopeRead[sample] * inputEnvelopeRead[sample];
-
-        channelData[sample] += drone * currentNoiseLevel * noiseEnvelope;
-    }
-
-    // Stage 4: fixed mono feedback delay (no parameter) for a dark, cavernous sustain
-    // tail suited to drone/post-punk dub washes. Output is added on top (wet, not
-    // crossfaded away from dry).
-    int const delayBufferSize = delayBuffer.getNumSamples();
-    auto* delayData = delayBuffer.getWritePointer (0);
-
-    for (int sample = 0; sample < numSamples; ++sample)
-    {
         int const readPos = (delayWritePos - delaySamples + delayBufferSize) % delayBufferSize;
-        float const delayed = delayData[readPos];
 
-        delayData[delayWritePos] = channelData[sample] + delayed * kDelayFeedback;
-        channelData[sample] += delayed * kDelayWetLevel;
+        for (int channel = 0; channel < numChannels; ++channel)
+        {
+            auto* channelData = channelWritePtrs[channel];
+            auto* delayData = delayWritePtrs[channel];
+
+            channelData[sample] = juce::jmap (currentVcfMix, drySignalPtrs[channel][sample], channelData[sample]);
+
+            float const drone = juce::jmap (currentVcfMix, dryNoisePtrs[channel][sample], filteredNoisePtrs[channel][sample]);
+            float const noiseEnvelope = lfoEnvelopeValue * inputEnvelopeReadPtrs[channel][sample];
+
+            channelData[sample] += drone * currentNoiseLevel * noiseEnvelope;
+
+            float const delayed = delayData[readPos];
+
+            delayData[delayWritePos] = channelData[sample] + delayed * kDelayFeedback;
+            channelData[sample] += delayed * kDelayWetLevel;
+
+            channelData[sample] = std::tanh (channelData[sample]);
+        }
 
         delayWritePos = (delayWritePos + 1) % delayBufferSize;
     }
-
-    // Final safety soft-clip: resonant filters, the additive drone, and the feedback
-    // delay can stack above unity, so tame the combined output before it leaves the plugin.
-    for (int sample = 0; sample < numSamples; ++sample)
-        channelData[sample] = std::tanh (channelData[sample]);
 }
 
 void JangolizerAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
