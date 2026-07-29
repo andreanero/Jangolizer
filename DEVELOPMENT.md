@@ -23,8 +23,10 @@ Audio Input
     ↓                                               ↑
 Audio Output                          [× NOISE_LEVEL, added in]
                                                      ↑
-                          [VCF Stage: white noise through an
-                           LFO-cutoff bandpass filter, blend
+                          [VCF Stage: white noise darkened toward
+                           brown/pink (leaky integrator), driven into
+                           tanh saturation for fuzz, then through an
+                           LFO-cutoff low-pass filter, blend
                            raw↔filtered noise via VCF_MIX]
 
 Parallel to audio path:
@@ -34,10 +36,15 @@ Parallel to audio path:
     └─→ Apply Bias (DC offset)
 ```
 
-The noise generator, not the entry signal, is what feeds the bandpass
-filter — VCF_MIX shapes the drone's own timbre (broadband noise vs.
-narrow resonant tone), while NOISE_LEVEL is a separate additive volume
-knob so the drone can sit under the entry signal without attenuating it.
+The noise generator, not the entry signal, is what feeds the low-pass
+filter — VCF_MIX shapes the drone's own timbre (broadband fuzzed noise
+vs. narrow resonant low end), while NOISE_LEVEL is a separate additive
+volume knob so the drone can sit under the entry signal without
+attenuating it. The noise path is tuned for a sunn O)))-style wall of
+low, fuzzed amp noise: colored dark, saturated hard, and low-pass
+filtered (not the signal filter's bright bandpass sweep), with a slow
+attack/release envelope so it swells in and fades like a bowed-in amp
+wall rather than snapping to pick transients.
 
 ## Core Components
 
@@ -75,7 +82,8 @@ The heart of the plugin. Inherits from `juce::AudioProcessor`.
    - Compute modulation signal (LFO × Depth + Bias)
    - Apply input gain + saturation
    - Apply VCA stage to the entry signal (blend via VCA_MIX)
-   - Generate noise, run it through the VCF bandpass filter, blend
+   - Generate noise, darken it toward brown/pink and saturate it (fuzz),
+     run it through its own LFO-cutoff low-pass filter, blend
      raw↔filtered noise via VCF_MIX, then add the result to the entry
      signal scaled by NOISE_LEVEL (additive, not a crossfade)
 

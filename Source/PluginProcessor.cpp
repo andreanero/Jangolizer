@@ -10,6 +10,17 @@ namespace
     // oscillating filter resonance, and a dark mono feedback delay tail.
     constexpr float kFilterResonanceQ = 9.0f;
 
+    // Noise drone character constants, tuned for a sunn O)))-style wall of low, fuzzed-out
+    // amp noise rather than a bright synth-y hiss: the raw white noise is darkened toward
+    // brown/pink with a leaky integrator, driven hard into tanh saturation for thick fuzz
+    // harmonics, then shaped by its own low, moderately resonant low-pass (not the bright,
+    // near-self-oscillating sweep used on the signal filter).
+    constexpr float kNoiseColorLeak = 0.98f;
+    constexpr float kNoiseDrive = 25.0f;
+    constexpr float kNoiseFilterResonanceQ = 3.5f;
+    constexpr float kNoiseFilterMinHz = 60.0f;
+    constexpr float kNoiseFilterOctaveRange = 3.0f;
+
     constexpr float kDelayTimeSeconds = 0.35f;
     constexpr float kDelayFeedback = 0.4f;
     constexpr float kDelayWetLevel = 0.3f;
@@ -86,8 +97,8 @@ void JangolizerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
 
     signalBandPassFilter.prepare (spec);
     signalBandPassFilter.reset();
-    noiseBandPassFilter.prepare (spec);
-    noiseBandPassFilter.reset();
+    noiseLowPassFilter.prepare (spec);
+    noiseLowPassFilter.reset();
 
     smoothedSpeed.reset (sampleRate, 0.02);
     smoothedDepth.reset (sampleRate, 0.02);
@@ -106,8 +117,11 @@ void JangolizerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
     inputEnvelopeBuffer.setSize (numChannels, samplesPerBlock);
 
     inputEnvelopeState.fill (0.0f);
-    inputEnvAttackCoeff  = 1.0f - std::exp (-1.0f / (float) (sampleRate * 0.005));
-    inputEnvReleaseCoeff = 1.0f - std::exp (-1.0f / (float) (sampleRate * 0.080));
+    noiseIntegratorState.fill (0.0f);
+    // Slow attack/release so the drone swells and fades like a bowed-in amp wall rather
+    // than snapping to each pick transient (sunn O)))-style volume swells, not tremolo).
+    inputEnvAttackCoeff  = 1.0f - std::exp (-1.0f / (float) (sampleRate * 0.15));
+    inputEnvReleaseCoeff = 1.0f - std::exp (-1.0f / (float) (sampleRate * 1.5));
 
     delaySamples = juce::jmax (1, (int) (sampleRate * kDelayTimeSeconds));
     delayBuffer.setSize (numChannels, juce::jmax (1, (int) (sampleRate * kMaxDelaySeconds)));
@@ -197,7 +211,10 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
             channelData[sample] = juce::jmap (currentVcaMix, saturated, saturated * unipolarMod);
             signalDryWritePtrs[channel][sample] = channelData[sample];
 
-            float const noiseSample = noiseRandom[channel].nextFloat() * 2.0f - 1.0f;
+            float const whiteNoise = noiseRandom[channel].nextFloat() * 2.0f - 1.0f;
+            noiseIntegratorState[channel] = noiseIntegratorState[channel] * kNoiseColorLeak
+                                             + whiteNoise * (1.0f - kNoiseColorLeak);
+            float const noiseSample = std::tanh (noiseIntegratorState[channel] * kNoiseDrive);
             noiseWritePtrs[channel][sample] = noiseSample;
             noiseDryWritePtrs[channel][sample] = noiseSample;
         }
@@ -205,12 +222,17 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
 
     // Coefficients only take effect once, at each filter's process() call below, so
     // compute them once per block (from the block's final modulation value) instead of
-    // per sample. Both filters share the same LFO-swept, narrow/near-self-oscillating
-    // (high Q) coefficients but hold independent internal state.
+    // per sample. Both filters are swept by the same LFO modulation value but with
+    // independent coefficients and internal state: the signal filter stays a bright,
+    // near-self-oscillating bandpass sweep (auto-wah); the noise filter is a low,
+    // moderately resonant low-pass so the drone stays a thick low-end wall, not a shriek.
     float const targetCutoff = 80.0f * std::pow (2.0f, lastUnipolarMod * 6.5f);
-    auto const filterCoeffs = juce::dsp::IIR::Coefficients<float>::makeBandPass (currentSampleRate, targetCutoff, kFilterResonanceQ);
-    *signalBandPassFilter.state = *filterCoeffs;
-    *noiseBandPassFilter.state  = *filterCoeffs;
+    auto const signalFilterCoeffs = juce::dsp::IIR::Coefficients<float>::makeBandPass (currentSampleRate, targetCutoff, kFilterResonanceQ);
+    *signalBandPassFilter.state = *signalFilterCoeffs;
+
+    float const noiseCutoff = kNoiseFilterMinHz * std::pow (2.0f, lastUnipolarMod * kNoiseFilterOctaveRange);
+    auto const noiseFilterCoeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass (currentSampleRate, noiseCutoff, kNoiseFilterResonanceQ);
+    *noiseLowPassFilter.state = *noiseFilterCoeffs;
 
     // Stage 2: VCF applied directly to the entry guitar signal (auto-wah style sweep),
     // blended dry/wet via VCF_MIX so the resonant filter is only heard as VCF_MIX opens up.
@@ -220,11 +242,11 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
         signalBandPassFilter.process (signalContext);
     }
 
-    // Stage 3: noise-fed VCF (bandpass filter) drone. VCF_MIX shapes the drone itself
-    // (raw noise vs. filtered/resonant noise); NOISE_LEVEL sets how loud the drone is
+    // Stage 3: noise-fed low-pass drone. VCF_MIX shapes the drone itself (raw fuzzed
+    // noise vs. filtered/resonant noise); NOISE_LEVEL sets how loud the drone is
     // layered on top of the entry signal (additive, entry signal stays untouched).
-    // The drone's amplitude is gated by the LFO oscillator envelope and by an envelope
-    // follower on the input, so it pulses with the oscillator and tracks input loudness
+    // The drone's amplitude is gated by the LFO oscillator envelope and by a slow
+    // envelope follower on the input, so it swells in and out with input loudness
     // instead of playing as a flat, input-independent hiss.
     {
         // noiseBuffer/delayBuffer are sized to the bus's max channel count (prepareToPlay),
@@ -232,7 +254,7 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
         // through the stereo desktop build in a test) — subset to the channels in play.
         auto noiseBlock = juce::dsp::AudioBlock<float> (noiseBuffer).getSubsetChannelBlock (0, (size_t) numChannels);
         juce::dsp::ProcessContextReplacing<float> noiseContext (noiseBlock);
-        noiseBandPassFilter.process (noiseContext);
+        noiseLowPassFilter.process (noiseContext);
     }
 
     // Single fused pass over the block: mixing (VCF_MIX signal dry/wet + noise raw/filtered,
