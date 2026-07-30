@@ -14,12 +14,16 @@ namespace
     // amp noise rather than a bright synth-y hiss: the raw white noise is darkened toward
     // brown/pink with a leaky integrator, driven hard into tanh saturation for thick fuzz
     // harmonics, then shaped by its own low, moderately resonant low-pass (not the bright,
-    // near-self-oscillating sweep used on the signal filter).
-    constexpr float kNoiseColorLeak = 0.98f;
-    constexpr float kNoiseDrive = 25.0f;
-    constexpr float kNoiseFilterResonanceQ = 3.5f;
+    // near-self-oscillating sweep used on the signal filter). Drive scales with the input
+    // envelope (kNoiseDriveEnvScale) so the fuzz itself gets harder as you play louder,
+    // instead of a fixed amount of saturation regardless of dynamics.
+    constexpr float kNoiseColorLeak = 0.95f;
+    constexpr float kNoiseDrive = 35.0f;
+    constexpr float kNoiseDriveEnvScale = 5.0f;
+    constexpr float kNoiseFilterResonanceQ = 5.0f;
     constexpr float kNoiseFilterMinHz = 60.0f;
     constexpr float kNoiseFilterOctaveRange = 3.0f;
+    constexpr float kNoiseEnvelopeContrast = 1.6f;
 
     constexpr float kDelayTimeSeconds = 0.35f;
     constexpr float kDelayFeedback = 0.4f;
@@ -214,7 +218,8 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
             float const whiteNoise = noiseRandom[channel].nextFloat() * 2.0f - 1.0f;
             noiseIntegratorState[channel] = noiseIntegratorState[channel] * kNoiseColorLeak
                                              + whiteNoise * (1.0f - kNoiseColorLeak);
-            float const noiseSample = std::tanh (noiseIntegratorState[channel] * kNoiseDrive);
+            float const noiseDrive = kNoiseDrive * (1.0f + inputEnvelopeState[channel] * kNoiseDriveEnvScale);
+            float const noiseSample = std::tanh (noiseIntegratorState[channel] * noiseDrive);
             noiseWritePtrs[channel][sample] = noiseSample;
             noiseDryWritePtrs[channel][sample] = noiseSample;
         }
@@ -299,7 +304,8 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
             channelData[sample] = juce::jmap (currentVcfMix, drySignalPtrs[channel][sample], channelData[sample]);
 
             float const drone = juce::jmap (currentVcfMix, dryNoisePtrs[channel][sample], filteredNoisePtrs[channel][sample]);
-            float const noiseEnvelope = lfoEnvelopeValue * inputEnvelopeReadPtrs[channel][sample];
+            float const rawNoiseEnvelope = lfoEnvelopeValue * inputEnvelopeReadPtrs[channel][sample];
+            float const noiseEnvelope = std::pow (rawNoiseEnvelope, kNoiseEnvelopeContrast);
 
             channelData[sample] += drone * currentNoiseLevel * noiseEnvelope;
 
