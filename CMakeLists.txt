@@ -61,9 +61,11 @@ juce_add_plugin(JangolizerPlugin
     NEEDS_MIDI_INPUT FALSE
     NEEDS_MIDI_OUTPUT FALSE
     IS_MIDI_EFFECT FALSE
-    FORMATS VST3 LV2 Standalone
+    FORMATS VST3 LV2 AU Standalone
     PRODUCT_NAME "Jangolizer"
     LV2URI "https://jangolizer.audio/jangolizer"
+    PLUGIN_MANUFACTURER_CODE Jgzl
+    PLUGIN_CODE Jang
     VST3_AUTO_MANIFEST FALSE
     MICROPHONE_PERMISSION_ENABLED TRUE
     MICROPHONE_PERMISSION_TEXT "Jangolizer needs microphone access to process live audio input."
