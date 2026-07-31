@@ -40,7 +40,7 @@ The noise generator, not the entry signal, is what feeds the low-pass
 filter — VCF_MIX shapes the drone's own timbre (broadband fuzzed noise
 vs. narrow resonant low end), while NOISE_LEVEL is a separate additive
 volume knob so the drone can sit under the entry signal without
-attenuating it. The noise path is tuned for a sunn O)))-style wall of
+attenuating it. The noise path is tuned for a wall of
 low, fuzzed amp noise: colored dark, saturated hard, and low-pass
 filtered (not the signal filter's bright bandpass sweep), with a slow
 attack/release envelope so it swells in and fades like a bowed-in amp

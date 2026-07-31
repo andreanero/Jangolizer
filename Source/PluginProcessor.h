@@ -68,18 +68,13 @@ private:
     // thin voice. On the stereo (desktop) build this also decorrelates the L/R noise
     // drone into a real stereo image instead of a duplicated-mono hiss; on the mono
     // (Elk) build only index 0 is ever touched.
-    static constexpr int kNoiseLayers = 3;
+    static constexpr int kNoiseLayers = 4;
     std::array<std::array<juce::Random, kNoiseLayers>, 2> noiseRandom;
 
     // Per-channel, per-layer one-pole leaky-integrator state: darkens each layer's raw
     // white noise toward its own brown/pink character before the layers are summed,
     // driven, and filtered (sunn O)))-style noise is thick and low, never a bright hiss).
     std::array<std::array<float, kNoiseLayers>, 2> noiseIntegratorState {};
-
-    // Per-channel one-pole leaky-integrator state: darkens the raw white noise toward a
-    // brown/pink character before saturation and filtering (sunn O)))-style noise is thick
-    // and low, never a bright hiss).
-    std::array<float, 2> noiseIntegratorState { 0.0f, 0.0f };
 
     double currentSampleRate = 44100.0;
 
@@ -93,7 +88,8 @@ private:
     // Noise drone envelope: gated by the stage-1 LFO oscillator (machine pulses with
     // the tremolo, a shared mono control signal — not audio, so no per-channel copy
     // needed) AND by a per-channel envelope follower on that channel's own raw input
-    // (drone tracks each channel's own loudness), so the drone is never audible as a
+    // (drone tracks each channel's own loudness), so the wall of sound swells and
+    // recedes with what's actually being played — visceral, input-reactive, never a
     // flat, input-independent hiss.
     juce::AudioBuffer<float> lfoEnvelopeBuffer;
     juce::AudioBuffer<float> inputEnvelopeBuffer;

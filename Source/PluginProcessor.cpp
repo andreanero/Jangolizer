@@ -10,25 +10,29 @@ namespace
     // oscillating filter resonance, and a dark mono feedback delay tail.
     constexpr float kFilterResonanceQ = 9.0f;
 
-    // Noise drone character constants, tuned for a sunn O)))-style wall of low, fuzzed-out
-    // amp noise rather than a bright synth-y hiss: kNoiseLayers decorrelated white-noise
-    // voices (see JangolizerAudioProcessor::kNoiseLayers) are each darkened toward their
-    // own brown/pink shade with a leaky integrator, summed, driven hard into tanh
-    // saturation for thick fuzz harmonics, then shaped by a shared low, moderately
-    // resonant low-pass (not the bright, near-self-oscillating sweep used on the signal
-    // filter). Stacking differently-colored layers instead of one voice is what makes the
-    // drone read as a dense wall rather than a single thin hiss. Drive scales with the
-    // input envelope (kNoiseDriveEnvScale) so the fuzz itself gets harder as you play
-    // louder, instead of a fixed amount of saturation regardless of dynamics.
-    constexpr std::array<float, 3> kNoiseLayerLeaks { 0.90f, 0.95f, 0.975f };
-    // 1/sqrt(3): keeps the summed layers' RMS matching a single layer's, so kNoiseDrive
+    // Noise drone character constants, tuned for a thick, fat, sunn O)))/Swans-style wall
+    // of low, fuzzed-out amp noise rather than a bright synth-y hiss: kNoiseLayers
+    // decorrelated white-noise voices (see JangolizerAudioProcessor::kNoiseLayers) are
+    // each darkened toward their own brown/pink shade with a leaky integrator (including
+    // one very dark, near-sub-bass layer for extra low-end mass), summed, driven hard
+    // into tanh saturation for thick fuzz harmonics, then shaped by a shared low,
+    // moderately resonant low-pass (not the bright, near-self-oscillating sweep used on
+    // the signal filter). Stacking differently-colored layers instead of one voice is
+    // what makes the drone read as a dense wall rather than a single thin hiss. Drive
+    // scales with the input envelope (kNoiseDriveEnvScale) so the fuzz itself gets harder
+    // as you play louder, instead of a fixed amount of saturation regardless of dynamics.
+    constexpr std::array<float, 4> kNoiseLayerLeaks { 0.90f, 0.95f, 0.975f, 0.99f };
+    // 1/sqrt(4): keeps the summed layers' RMS matching a single layer's, so kNoiseDrive
     // stays correctly tuned regardless of how many decorrelated voices are stacked.
-    constexpr float kNoiseLayerNormalize = 0.5774f;
-    constexpr float kNoiseDrive = 35.0f;
+    constexpr float kNoiseLayerNormalize = 0.5f;
+    constexpr float kNoiseDrive = 40.0f;
     constexpr float kNoiseDriveEnvScale = 5.0f;
     constexpr float kNoiseFilterResonanceQ = 5.0f;
     constexpr float kNoiseFilterMinHz = 60.0f;
-    constexpr float kNoiseFilterOctaveRange = 3.0f;
+    // Kept narrow (vs. the signal filter's wide sweep) so the drone's cutoff never climbs
+    // far above the low end even at full modulation — stays a fat low-frequency mass
+    // instead of thinning into a bright hiss at the top of the LFO sweep.
+    constexpr float kNoiseFilterOctaveRange = 2.0f;
     constexpr float kNoiseEnvelopeContrast = 1.6f;
 
     constexpr float kDelayTimeSeconds = 0.35f;
@@ -262,8 +266,9 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
     // noise vs. filtered/resonant noise); NOISE_LEVEL sets how loud the drone is
     // layered on top of the entry signal (additive, entry signal stays untouched).
     // The drone's amplitude is gated by the LFO oscillator envelope and by a slow
-    // envelope follower on the input, so it swells in and out with input loudness
-    // instead of playing as a flat, input-independent hiss.
+    // envelope follower on the input, so it swells in and out with input loudness —
+    // a visceral, sunn O)))/Swans-style wall of sound that reacts to what's actually
+    // being played, not a fixed drone playing regardless of dynamics.
     {
         // noiseBuffer/delayBuffer are sized to the bus's max channel count (prepareToPlay),
         // which can exceed this block's actual channel count (e.g. a mono buffer fed
