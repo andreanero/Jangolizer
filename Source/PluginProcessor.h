@@ -62,15 +62,19 @@ private:
     juce::LinearSmoothedValue<float> smoothedVcfMix;
     juce::LinearSmoothedValue<float> smoothedNoiseLevel;
 
-    // One independent RNG per channel: on the stereo (desktop) build this decorrelates
-    // the L/R noise drone into a real stereo image instead of a duplicated-mono hiss.
-    // On the mono (Elk) build only index 0 is ever touched.
-    std::array<juce::Random, 2> noiseRandom;
+    // Wall-of-sound thickness: kNoiseLayers decorrelated noise voices per channel, each
+    // colored to a different darkness (see kNoiseLayerLeaks in .cpp) and summed before
+    // drive/filtering, so the drone reads as a dense broadband mass instead of a single
+    // thin voice. On the stereo (desktop) build this also decorrelates the L/R noise
+    // drone into a real stereo image instead of a duplicated-mono hiss; on the mono
+    // (Elk) build only index 0 is ever touched.
+    static constexpr int kNoiseLayers = 3;
+    std::array<std::array<juce::Random, kNoiseLayers>, 2> noiseRandom;
 
-    // Per-channel one-pole leaky-integrator state: darkens the raw white noise toward a
-    // brown/pink character before saturation and filtering (sunn O)))-style noise is thick
-    // and low, never a bright hiss).
-    std::array<float, 2> noiseIntegratorState { 0.0f, 0.0f };
+    // Per-channel, per-layer one-pole leaky-integrator state: darkens each layer's raw
+    // white noise toward its own brown/pink character before the layers are summed,
+    // driven, and filtered (sunn O)))-style noise is thick and low, never a bright hiss).
+    std::array<std::array<float, kNoiseLayers>, 2> noiseIntegratorState {};
 
     double currentSampleRate = 44100.0;
 

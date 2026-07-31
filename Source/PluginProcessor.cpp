@@ -11,13 +11,19 @@ namespace
     constexpr float kFilterResonanceQ = 9.0f;
 
     // Noise drone character constants, tuned for a sunn O)))-style wall of low, fuzzed-out
-    // amp noise rather than a bright synth-y hiss: the raw white noise is darkened toward
-    // brown/pink with a leaky integrator, driven hard into tanh saturation for thick fuzz
-    // harmonics, then shaped by its own low, moderately resonant low-pass (not the bright,
-    // near-self-oscillating sweep used on the signal filter). Drive scales with the input
-    // envelope (kNoiseDriveEnvScale) so the fuzz itself gets harder as you play louder,
-    // instead of a fixed amount of saturation regardless of dynamics.
-    constexpr float kNoiseColorLeak = 0.95f;
+    // amp noise rather than a bright synth-y hiss: kNoiseLayers decorrelated white-noise
+    // voices (see JangolizerAudioProcessor::kNoiseLayers) are each darkened toward their
+    // own brown/pink shade with a leaky integrator, summed, driven hard into tanh
+    // saturation for thick fuzz harmonics, then shaped by a shared low, moderately
+    // resonant low-pass (not the bright, near-self-oscillating sweep used on the signal
+    // filter). Stacking differently-colored layers instead of one voice is what makes the
+    // drone read as a dense wall rather than a single thin hiss. Drive scales with the
+    // input envelope (kNoiseDriveEnvScale) so the fuzz itself gets harder as you play
+    // louder, instead of a fixed amount of saturation regardless of dynamics.
+    constexpr std::array<float, 3> kNoiseLayerLeaks { 0.90f, 0.95f, 0.975f };
+    // 1/sqrt(3): keeps the summed layers' RMS matching a single layer's, so kNoiseDrive
+    // stays correctly tuned regardless of how many decorrelated voices are stacked.
+    constexpr float kNoiseLayerNormalize = 0.5774f;
     constexpr float kNoiseDrive = 35.0f;
     constexpr float kNoiseDriveEnvScale = 5.0f;
     constexpr float kNoiseFilterResonanceQ = 5.0f;
@@ -121,7 +127,7 @@ void JangolizerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
     inputEnvelopeBuffer.setSize (numChannels, samplesPerBlock);
 
     inputEnvelopeState.fill (0.0f);
-    noiseIntegratorState.fill (0.0f);
+    noiseIntegratorState = {};
     // Slow attack/release so the drone swells and fades like a bowed-in amp wall rather
     // than snapping to each pick transient (sunn O)))-style volume swells, not tremolo).
     inputEnvAttackCoeff  = 1.0f - std::exp (-1.0f / (float) (sampleRate * 0.15));
@@ -215,11 +221,16 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
             channelData[sample] = juce::jmap (currentVcaMix, saturated, saturated * unipolarMod);
             signalDryWritePtrs[channel][sample] = channelData[sample];
 
-            float const whiteNoise = noiseRandom[channel].nextFloat() * 2.0f - 1.0f;
-            noiseIntegratorState[channel] = noiseIntegratorState[channel] * kNoiseColorLeak
-                                             + whiteNoise * (1.0f - kNoiseColorLeak);
+            float noiseLayerSum = 0.0f;
+            for (int layer = 0; layer < kNoiseLayers; ++layer)
+            {
+                float const whiteNoise = noiseRandom[channel][layer].nextFloat() * 2.0f - 1.0f;
+                noiseIntegratorState[channel][layer] = noiseIntegratorState[channel][layer] * kNoiseLayerLeaks[layer]
+                                                        + whiteNoise * (1.0f - kNoiseLayerLeaks[layer]);
+                noiseLayerSum += noiseIntegratorState[channel][layer];
+            }
             float const noiseDrive = kNoiseDrive * (1.0f + inputEnvelopeState[channel] * kNoiseDriveEnvScale);
-            float const noiseSample = std::tanh (noiseIntegratorState[channel] * noiseDrive);
+            float const noiseSample = std::tanh (noiseLayerSum * kNoiseLayerNormalize * noiseDrive);
             noiseWritePtrs[channel][sample] = noiseSample;
             noiseDryWritePtrs[channel][sample] = noiseSample;
         }
