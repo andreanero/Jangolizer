@@ -76,6 +76,11 @@ private:
     // driven, and filtered (sunn O)))-style noise is thick and low, never a bright hiss).
     std::array<std::array<float, kNoiseLayers>, 2> noiseIntegratorState {};
 
+    // Per-channel one-pole leaky-integrator state: darkens the raw white noise toward a
+    // brown/pink character before saturation and filtering (sunn O)))-style noise is thick
+    // and low, never a bright hiss).
+    std::array<float, 2> noiseIntegratorState { 0.0f, 0.0f };
+
     double currentSampleRate = 44100.0;
 
     // Per-channel: sized to the bus's channel count (1 on Elk, 2 on desktop) in
