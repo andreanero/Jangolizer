@@ -47,11 +47,12 @@ private:
     
     using FilterState = juce::dsp::IIR::Coefficients<float>;
     using FilterType = juce::dsp::IIR::Filter<float>;
-    // Two independent filter instances (separate internal state) sharing the same
-    // LFO-swept, resonant coefficients: one carves the entry guitar signal itself
-    // (auto-wah style, blended via VCF_MIX), the other shapes the noise drone.
+    // Two independent filters, both swept by the same LFO modulation value but with their
+    // own coefficients: signalBandPassFilter carves the entry guitar signal (auto-wah
+    // style, blended via VCF_MIX); noiseLowPassFilter shapes the noise drone with a low,
+    // resonant low-pass (sunn O)))-style amp-stack low end) instead of a bright sweep.
     juce::dsp::ProcessorDuplicator<FilterType, FilterState> signalBandPassFilter;
-    juce::dsp::ProcessorDuplicator<FilterType, FilterState> noiseBandPassFilter;
+    juce::dsp::ProcessorDuplicator<FilterType, FilterState> noiseLowPassFilter;
 
     juce::LinearSmoothedValue<float> smoothedSpeed;
     juce::LinearSmoothedValue<float> smoothedDepth;
@@ -65,6 +66,11 @@ private:
     // the L/R noise drone into a real stereo image instead of a duplicated-mono hiss.
     // On the mono (Elk) build only index 0 is ever touched.
     std::array<juce::Random, 2> noiseRandom;
+
+    // Per-channel one-pole leaky-integrator state: darkens the raw white noise toward a
+    // brown/pink character before saturation and filtering (sunn O)))-style noise is thick
+    // and low, never a bright hiss).
+    std::array<float, 2> noiseIntegratorState { 0.0f, 0.0f };
 
     double currentSampleRate = 44100.0;
 
