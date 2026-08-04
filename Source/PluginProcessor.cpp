@@ -10,19 +10,24 @@ namespace
     // oscillating filter resonance, and a dark mono feedback delay tail.
     constexpr float kFilterResonanceQ = 9.0f;
 
-    // Noise drone character constants, tuned for a sunn O)))-style wall of low, fuzzed-out
-    // amp noise rather than a bright synth-y hiss: the raw white noise is darkened toward
-    // brown/pink with a leaky integrator, driven hard into tanh saturation for thick fuzz
-    // harmonics, then shaped by its own low, moderately resonant low-pass (not the bright,
-    // near-self-oscillating sweep used on the signal filter). Drive scales with the input
-    // envelope (kNoiseDriveEnvScale) so the fuzz itself gets harder as you play louder,
-    // instead of a fixed amount of saturation regardless of dynamics.
-    constexpr float kNoiseColorLeak = 0.95f;
-    constexpr float kNoiseDrive = 35.0f;
+    // Noise drone character constants, tuned for a fat, harsh, dissonant no-wave-style
+    // wall of fuzzed guitar-amp noise rather than a bright synth-y hiss or a dark sub
+    // rumble: the raw white noise gets only a light color pass (kNoiseColorLeak, far
+    // lower than a true brown-noise integrator) so plenty of harsh top end survives,
+    // then it's driven hard into a two-stage distortion — soft tanh saturation followed
+    // by a hard clip (kNoiseFuzzDrive/kNoiseFuzzClip) — for a fat, clipped fuzz-pedal
+    // edge, then shaped by a resonant, mid-forward bandpass (not a dark low-pass) so the
+    // wall stays howling/dissonant rather than a low amp-stack drone. Drive scales with
+    // the input envelope (kNoiseDriveEnvScale) so the fuzz itself gets harder as you play
+    // louder, instead of a fixed amount of distortion regardless of dynamics.
+    constexpr float kNoiseColorLeak = 0.5f;
+    constexpr float kNoiseDrive = 45.0f;
     constexpr float kNoiseDriveEnvScale = 5.0f;
-    constexpr float kNoiseFilterResonanceQ = 5.0f;
-    constexpr float kNoiseFilterMinHz = 60.0f;
-    constexpr float kNoiseFilterOctaveRange = 3.0f;
+    constexpr float kNoiseFuzzDrive = 1.6f;
+    constexpr float kNoiseFuzzClip = 0.9f;
+    constexpr float kNoiseFilterResonanceQ = 7.0f;
+    constexpr float kNoiseFilterMinHz = 150.0f;
+    constexpr float kNoiseFilterOctaveRange = 3.5f;
     constexpr float kNoiseEnvelopeContrast = 1.6f;
 
     constexpr float kDelayTimeSeconds = 0.35f;
@@ -101,8 +106,8 @@ void JangolizerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
 
     signalBandPassFilter.prepare (spec);
     signalBandPassFilter.reset();
-    noiseLowPassFilter.prepare (spec);
-    noiseLowPassFilter.reset();
+    noiseFilter.prepare (spec);
+    noiseFilter.reset();
 
     smoothedSpeed.reset (sampleRate, 0.02);
     smoothedDepth.reset (sampleRate, 0.02);
@@ -122,10 +127,11 @@ void JangolizerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
 
     inputEnvelopeState.fill (0.0f);
     noiseIntegratorState.fill (0.0f);
-    // Slow attack/release so the drone swells and fades like a bowed-in amp wall rather
-    // than snapping to each pick transient (sunn O)))-style volume swells, not tremolo).
-    inputEnvAttackCoeff  = 1.0f - std::exp (-1.0f / (float) (sampleRate * 0.15));
-    inputEnvReleaseCoeff = 1.0f - std::exp (-1.0f / (float) (sampleRate * 1.5));
+    // Fast attack so the fuzz wall jumps in with each pick attack (visceral, not a slow
+    // bowed-in swell), slower release so it still washes/decays like amp noise rather
+    // than gating shut instantly between notes.
+    inputEnvAttackCoeff  = 1.0f - std::exp (-1.0f / (float) (sampleRate * 0.03));
+    inputEnvReleaseCoeff = 1.0f - std::exp (-1.0f / (float) (sampleRate * 0.6));
 
     delaySamples = juce::jmax (1, (int) (sampleRate * kDelayTimeSeconds));
     delayBuffer.setSize (numChannels, juce::jmax (1, (int) (sampleRate * kMaxDelaySeconds)));
@@ -219,7 +225,8 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
             noiseIntegratorState[channel] = noiseIntegratorState[channel] * kNoiseColorLeak
                                              + whiteNoise * (1.0f - kNoiseColorLeak);
             float const noiseDrive = kNoiseDrive * (1.0f + inputEnvelopeState[channel] * kNoiseDriveEnvScale);
-            float const noiseSample = std::tanh (noiseIntegratorState[channel] * noiseDrive);
+            float const fuzzStageOne = std::tanh (noiseIntegratorState[channel] * noiseDrive);
+            float const noiseSample = juce::jlimit (-kNoiseFuzzClip, kNoiseFuzzClip, fuzzStageOne * kNoiseFuzzDrive);
             noiseWritePtrs[channel][sample] = noiseSample;
             noiseDryWritePtrs[channel][sample] = noiseSample;
         }
@@ -229,15 +236,16 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
     // compute them once per block (from the block's final modulation value) instead of
     // per sample. Both filters are swept by the same LFO modulation value but with
     // independent coefficients and internal state: the signal filter stays a bright,
-    // near-self-oscillating bandpass sweep (auto-wah); the noise filter is a low,
-    // moderately resonant low-pass so the drone stays a thick low-end wall, not a shriek.
+    // near-self-oscillating bandpass sweep (auto-wah); the noise filter is its own,
+    // more resonant bandpass so the fuzzed wall stays harsh/dissonant/howling rather
+    // than settling into a dark low-end rumble.
     float const targetCutoff = 80.0f * std::pow (2.0f, lastUnipolarMod * 6.5f);
     auto const signalFilterCoeffs = juce::dsp::IIR::Coefficients<float>::makeBandPass (currentSampleRate, targetCutoff, kFilterResonanceQ);
     *signalBandPassFilter.state = *signalFilterCoeffs;
 
     float const noiseCutoff = kNoiseFilterMinHz * std::pow (2.0f, lastUnipolarMod * kNoiseFilterOctaveRange);
-    auto const noiseFilterCoeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass (currentSampleRate, noiseCutoff, kNoiseFilterResonanceQ);
-    *noiseLowPassFilter.state = *noiseFilterCoeffs;
+    auto const noiseFilterCoeffs = juce::dsp::IIR::Coefficients<float>::makeBandPass (currentSampleRate, noiseCutoff, kNoiseFilterResonanceQ);
+    *noiseFilter.state = *noiseFilterCoeffs;
 
     // Stage 2: VCF applied directly to the entry guitar signal (auto-wah style sweep),
     // blended dry/wet via VCF_MIX so the resonant filter is only heard as VCF_MIX opens up.
@@ -247,19 +255,19 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
         signalBandPassFilter.process (signalContext);
     }
 
-    // Stage 3: noise-fed low-pass drone. VCF_MIX shapes the drone itself (raw fuzzed
-    // noise vs. filtered/resonant noise); NOISE_LEVEL sets how loud the drone is
+    // Stage 3: fuzzed-noise bandpass wall. VCF_MIX shapes the wall itself (raw fuzzed
+    // noise vs. filtered/resonant noise); NOISE_LEVEL sets how loud the wall is
     // layered on top of the entry signal (additive, entry signal stays untouched).
-    // The drone's amplitude is gated by the LFO oscillator envelope and by a slow
-    // envelope follower on the input, so it swells in and out with input loudness
-    // instead of playing as a flat, input-independent hiss.
+    // The wall's amplitude is gated by the LFO oscillator envelope and by an envelope
+    // follower on the input, so it surges in and out with input loudness instead of
+    // playing as a flat, input-independent hiss.
     {
         // noiseBuffer/delayBuffer are sized to the bus's max channel count (prepareToPlay),
         // which can exceed this block's actual channel count (e.g. a mono buffer fed
         // through the stereo desktop build in a test) — subset to the channels in play.
         auto noiseBlock = juce::dsp::AudioBlock<float> (noiseBuffer).getSubsetChannelBlock (0, (size_t) numChannels);
         juce::dsp::ProcessContextReplacing<float> noiseContext (noiseBlock);
-        noiseLowPassFilter.process (noiseContext);
+        noiseFilter.process (noiseContext);
     }
 
     // Single fused pass over the block: mixing (VCF_MIX signal dry/wet + noise raw/filtered,
