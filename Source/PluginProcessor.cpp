@@ -10,6 +10,18 @@ namespace
     // oscillating filter resonance, and a dark mono feedback delay tail.
     constexpr float kFilterResonanceQ = 9.0f;
 
+    // Stage-1 drive character constants, tuned for a thicker, warmer, more distorted
+    // Orange-amp-dirty-channel voicing: a heavily-low-passed pre-emphasis tap fattens
+    // chord fundamentals/low end before the drive so they survive un-scooped, then two
+    // cascaded gain stages (mimicking a tube preamp's cascaded gain stages) with a
+    // slight even-harmonic asymmetry between them give a thicker, warmer harmonic
+    // complexity than a single symmetric clip.
+    constexpr float kSignalBassBoost = 0.35f;
+    constexpr float kSignalBassBoostLeak = 0.995f;
+    constexpr float kSignalDriveBoost = 1.8f;
+    constexpr float kSignalAsymmetry = 0.18f;
+    constexpr float kSignalStageTwoDrive = 1.4f;
+
     // Noise drone character constants, tuned for a fat, harsh, dissonant no-wave-style
     // wall of fuzzed guitar-amp noise rather than a bright synth-y hiss or a dark sub
     // rumble: the raw white noise gets only a light color pass (kNoiseColorLeak, far
@@ -127,6 +139,7 @@ void JangolizerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
 
     inputEnvelopeState.fill (0.0f);
     noiseIntegratorState.fill (0.0f);
+    bassBoostState.fill (0.0f);
     // Fast attack so the fuzz wall jumps in with each pick attack (visceral, not a slow
     // bowed-in swell), slower release so it still washes/decays like amp noise rather
     // than gating shut instantly between notes.
@@ -216,7 +229,13 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
             inputEnvelopeState[channel] += followerCoeff * (inputAbs - inputEnvelopeState[channel]);
             inputEnvelopeWritePtrs[channel][sample] = inputEnvelopeState[channel];
 
-            float const saturated = std::tanh (channelData[sample] * currentGain);
+            bassBoostState[channel] += (1.0f - kSignalBassBoostLeak) * (channelData[sample] - bassBoostState[channel]);
+            float const fattened = channelData[sample] + bassBoostState[channel] * kSignalBassBoost;
+
+            float const drive1 = fattened * currentGain * kSignalDriveBoost;
+            float const asymBias = drive1 * drive1 * (drive1 >= 0.0f ? kSignalAsymmetry : -kSignalAsymmetry);
+            float const stageOne = std::tanh (drive1 + asymBias);
+            float const saturated = std::tanh (stageOne * kSignalStageTwoDrive);
 
             channelData[sample] = juce::jmap (currentVcaMix, saturated, saturated * unipolarMod);
             signalDryWritePtrs[channel][sample] = channelData[sample];

@@ -68,6 +68,11 @@ private:
     // On the mono (Elk) build only index 0 is ever touched.
     std::array<juce::Random, 2> noiseRandom;
 
+    // Per-channel one-pole low-pass tap, fed into the stage-1 drive as a pre-emphasis
+    // bass boost: keeps chord fundamentals/low end thick and un-scooped through the
+    // distortion (Orange-dirty-style voicing) instead of thinning out under gain.
+    std::array<float, 2> bassBoostState { 0.0f, 0.0f };
+
     // Per-channel one-pole leaky-integrator state: lightly colors the raw white noise
     // before it's driven into the fat fuzz distortion stage below (just enough leak to
     // take the edge off pure white hiss, kept light so the harsh/dissonant top end that
