@@ -49,10 +49,11 @@ private:
     using FilterType = juce::dsp::IIR::Filter<float>;
     // Two independent filters, both swept by the same LFO modulation value but with their
     // own coefficients: signalBandPassFilter carves the entry guitar signal (auto-wah
-    // style, blended via VCF_MIX); noiseLowPassFilter shapes the noise drone with a low,
-    // resonant low-pass (sunn O)))-style amp-stack low end) instead of a bright sweep.
+    // style, blended via VCF_MIX); noiseFilter carves the fuzzed noise wall through a
+    // resonant, mid-forward bandpass instead of a dark low-pass, so the drone stays
+    // harsh/dissonant/howling rather than a deep sub rumble.
     juce::dsp::ProcessorDuplicator<FilterType, FilterState> signalBandPassFilter;
-    juce::dsp::ProcessorDuplicator<FilterType, FilterState> noiseLowPassFilter;
+    juce::dsp::ProcessorDuplicator<FilterType, FilterState> noiseFilter;
 
     juce::LinearSmoothedValue<float> smoothedSpeed;
     juce::LinearSmoothedValue<float> smoothedDepth;
@@ -67,9 +68,15 @@ private:
     // On the mono (Elk) build only index 0 is ever touched.
     std::array<juce::Random, 2> noiseRandom;
 
-    // Per-channel one-pole leaky-integrator state: darkens the raw white noise toward a
-    // brown/pink character before saturation and filtering (sunn O)))-style noise is thick
-    // and low, never a bright hiss).
+    // Per-channel one-pole low-pass tap, fed into the stage-1 drive as a pre-emphasis
+    // bass boost: keeps chord fundamentals/low end thick and un-scooped through the
+    // distortion (Orange-dirty-style voicing) instead of thinning out under gain.
+    std::array<float, 2> bassBoostState { 0.0f, 0.0f };
+
+    // Per-channel one-pole leaky-integrator state: lightly colors the raw white noise
+    // before it's driven into the fat fuzz distortion stage below (just enough leak to
+    // take the edge off pure white hiss, kept light so the harsh/dissonant top end that
+    // makes the wall of sound distinctive survives).
     std::array<float, 2> noiseIntegratorState { 0.0f, 0.0f };
 
     double currentSampleRate = 44100.0;

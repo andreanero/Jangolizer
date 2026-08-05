@@ -23,11 +23,11 @@ Audio Input
     ↓                                               ↑
 Audio Output                          [× NOISE_LEVEL, added in]
                                                      ↑
-                          [VCF Stage: white noise darkened toward
-                           brown/pink (leaky integrator), driven into
-                           tanh saturation for fuzz, then through an
-                           LFO-cutoff low-pass filter, blend
-                           raw↔filtered noise via VCF_MIX]
+                          [VCF Stage: white noise lightly colored
+                           (leaky integrator), driven into a two-stage
+                           fuzz distortion (tanh + hard clip), then
+                           through an LFO-cutoff resonant bandpass
+                           filter, blend raw↔filtered noise via VCF_MIX]
 
 Parallel to audio path:
 [LFO Generator (PolyBLEP)]
@@ -36,15 +36,16 @@ Parallel to audio path:
     └─→ Apply Bias (DC offset)
 ```
 
-The noise generator, not the entry signal, is what feeds the low-pass
-filter — VCF_MIX shapes the drone's own timbre (broadband fuzzed noise
-vs. narrow resonant low end), while NOISE_LEVEL is a separate additive
-volume knob so the drone can sit under the entry signal without
-attenuating it. The noise path is tuned for a sunn O)))-style wall of
-low, fuzzed amp noise: colored dark, saturated hard, and low-pass
-filtered (not the signal filter's bright bandpass sweep), with a slow
-attack/release envelope so it swells in and fades like a bowed-in amp
-wall rather than snapping to pick transients.
+The noise generator, not the entry signal, is what feeds the noise
+bandpass filter — VCF_MIX shapes the drone's own timbre (broadband
+fuzzed noise vs. narrow resonant band), while NOISE_LEVEL is a separate
+additive volume knob so the drone can sit under the entry signal
+without attenuating it. The noise path is tuned for a fat, harsh,
+dissonant wall of fuzzed amp noise: lightly colored, driven through a
+two-stage fuzz distortion, and bandpass filtered (its own independent
+filter from the signal filter, though both are resonant/LFO-swept),
+with a fast-attack, surging envelope so it jumps in with each pick
+attack rather than a slow bowed-in swell.
 
 ## Core Components
 
@@ -82,10 +83,11 @@ The heart of the plugin. Inherits from `juce::AudioProcessor`.
    - Compute modulation signal (LFO × Depth + Bias)
    - Apply input gain + saturation
    - Apply VCA stage to the entry signal (blend via VCA_MIX)
-   - Generate noise, darken it toward brown/pink and saturate it (fuzz),
-     run it through its own LFO-cutoff low-pass filter, blend
-     raw↔filtered noise via VCF_MIX, then add the result to the entry
-     signal scaled by NOISE_LEVEL (additive, not a crossfade)
+   - Generate noise, lightly color it and drive it through a two-stage
+     fuzz distortion, run it through its own LFO-cutoff resonant
+     bandpass filter, blend raw↔filtered noise via VCF_MIX, then add
+     the result to the entry signal scaled by NOISE_LEVEL (additive,
+     not a crossfade)
 
 ### 3. **PluginEditor.h / PluginEditor.cpp** (Desktop Only)
 Conditional compilation: **Only compiled when `ELK_HEADLESS=0`**
