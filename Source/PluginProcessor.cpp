@@ -82,7 +82,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout JangolizerAudioProcessor::cr
         "DEPTH", "Modulation Depth", 0.0f, 1.0f, 0.7f));
 
     layout.add (std::make_unique<juce::AudioParameterFloat> (
-        "BIAS", "DC Bias Offset", -1.0f, 1.0f, 0.0f));
+        "SWEEP_OFFSET", "Sweep Offset", -1.0f, 1.0f, 0.0f));
 
     layout.add (std::make_unique<juce::AudioParameterFloat> (
         "GAIN", "Input Drive", 1.0f, 10.0f, 1.0f));
@@ -114,7 +114,7 @@ void JangolizerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
     spec.maximumBlockSize = juce::uint32 (samplesPerBlock);
-    spec.numChannels = juce::uint32 (getTotalNumInputChannels());
+    spec.numChannels = juce::uint32 (juce::jmax (getTotalNumInputChannels(), getTotalNumOutputChannels()));
 
     signalBandPassFilter.prepare (spec);
     signalBandPassFilter.reset();
@@ -123,13 +123,13 @@ void JangolizerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
 
     smoothedSpeed.reset (sampleRate, 0.02);
     smoothedDepth.reset (sampleRate, 0.02);
-    smoothedBias.reset  (sampleRate, 0.02);
+    smoothedSweepOffset.reset (sampleRate, 0.02);
     smoothedGain.reset  (sampleRate, 0.02);
     smoothedVcaMix.reset (sampleRate, 0.02);
     smoothedVcfMix.reset (sampleRate, 0.02);
     smoothedNoiseLevel.reset (sampleRate, 0.02);
 
-    int const numChannels = getTotalNumInputChannels();
+    int const numChannels = juce::jmax (getTotalNumInputChannels(), getTotalNumOutputChannels());
 
     noiseBuffer.setSize (numChannels, samplesPerBlock);
     noiseDryBuffer.setSize (numChannels, samplesPerBlock);
@@ -163,7 +163,7 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
 
     smoothedSpeed.setTargetValue  (*apvts.getRawParameterValue ("SPEED"));
     smoothedDepth.setTargetValue  (*apvts.getRawParameterValue ("DEPTH"));
-    smoothedBias.setTargetValue   (*apvts.getRawParameterValue ("BIAS"));
+    smoothedSweepOffset.setTargetValue (*apvts.getRawParameterValue ("SWEEP_OFFSET"));
     smoothedGain.setTargetValue   (*apvts.getRawParameterValue ("GAIN"));
     smoothedVcaMix.setTargetValue (*apvts.getRawParameterValue ("VCA_MIX"));
     smoothedVcfMix.setTargetValue (*apvts.getRawParameterValue ("VCF_MIX"));
@@ -174,7 +174,11 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
     lfo.setWaveform (static_cast<PolyBLEPOscillator::Waveform>(wave));
 
     int const numSamples = buffer.getNumSamples();
-    int const numChannels = buffer.getNumChannels();
+    // Clamp to the smallest allocated internal buffer (state arrays and scratch
+    // buffers are sized in prepareToPlay off the reported channel counts; the
+    // host can still hand processBlock a buffer with a different channel count
+    // at runtime, e.g. standalone with mismatched in/out devices).
+    int const numChannels = juce::jmin (buffer.getNumChannels(), noiseBuffer.getNumChannels());
 
     // Stage 1: saturate, apply VCA (tremolo) blend, track modulation for the filter cutoff
     // and for the noise stage's two envelopes (LFO oscillator + input follower). The dry
@@ -206,7 +210,7 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
     {
         float const currentSpeed  = smoothedSpeed.getNextValue();
         float const currentDepth  = smoothedDepth.getNextValue();
-        float const currentBias   = smoothedBias.getNextValue();
+        float const currentSweepOffset = smoothedSweepOffset.getNextValue();
         float const currentGain   = smoothedGain.getNextValue();
         float const currentVcaMix = smoothedVcaMix.getNextValue();
 
@@ -214,7 +218,7 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
         lfo.advance();
         float const lfoSample = lfo.getSample();
 
-        float modulation = (lfoSample * currentDepth) + currentBias;
+        float modulation = (lfoSample * currentDepth) + currentSweepOffset;
         modulation = juce::jlimit (-1.0f, 1.0f, modulation);
         float const unipolarMod = (modulation + 1.0f) * 0.5f;
         lastUnipolarMod = unipolarMod;
@@ -269,7 +273,10 @@ void JangolizerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
     // Stage 2: VCF applied directly to the entry guitar signal (auto-wah style sweep),
     // blended dry/wet via VCF_MIX so the resonant filter is only heard as VCF_MIX opens up.
     {
-        juce::dsp::AudioBlock<float> signalBlock (buffer);
+        // Subset to numChannels for the same reason as noiseBlock below: the filter is
+        // prepared to the bus's max channel count, but this block's actual channel count
+        // can be smaller.
+        auto signalBlock = juce::dsp::AudioBlock<float> (buffer).getSubsetChannelBlock (0, (size_t) numChannels);
         juce::dsp::ProcessContextReplacing<float> signalContext (signalBlock);
         signalBandPassFilter.process (signalContext);
     }

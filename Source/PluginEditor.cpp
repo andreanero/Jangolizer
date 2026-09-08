@@ -59,13 +59,13 @@ JangolizerAudioProcessorEditor::JangolizerAudioProcessorEditor (JangolizerAudioP
     // Setup sliders
     setupSlider (speedSlider, speedLabel, "SPEED");
     setupSlider (depthSlider, depthLabel, "DEPTH");
-    setupSlider (biasSlider, biasLabel, "BIAS");
+    setupSlider (sweepOffsetSlider, sweepOffsetLabel, "SWEEP OFFSET");
     setupSlider (gainSlider, gainLabel, "GAIN");
 
     speedSlider.setRange (0.1f, 400.0f, 0.01f);
     speedSlider.setSkewFactorFromMidPoint (5.0f);
     depthSlider.setRange (0.0f, 1.0f, 0.01f);
-    biasSlider.setRange (-1.0f, 1.0f, 0.01f);
+    sweepOffsetSlider.setRange (-1.0f, 1.0f, 0.01f);
     gainSlider.setRange (1.0f, 10.0f, 0.01f);
 
     setupSlider (vcaMixSlider, vcaMixLabel, "VCA MIX");
@@ -96,8 +96,8 @@ JangolizerAudioProcessorEditor::JangolizerAudioProcessorEditor (JangolizerAudioP
         audioProcessor.apvts, "SPEED", speedSlider);
     depthAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
         audioProcessor.apvts, "DEPTH", depthSlider);
-    biasAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
-        audioProcessor.apvts, "BIAS", biasSlider);
+    sweepOffsetAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
+        audioProcessor.apvts, "SWEEP_OFFSET", sweepOffsetSlider);
     gainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
         audioProcessor.apvts, "GAIN", gainSlider);
     waveformAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
@@ -210,7 +210,7 @@ void JangolizerAudioProcessorEditor::resized()
 
     speedSlider.setBounds (sliderRow.removeFromLeft (sliderWidth).reduced (5));
     depthSlider.setBounds (sliderRow.removeFromLeft (sliderWidth).reduced (5));
-    biasSlider.setBounds (sliderRow.removeFromLeft (sliderWidth).reduced (5));
+    sweepOffsetSlider.setBounds (sliderRow.removeFromLeft (sliderWidth).reduced (5));
     gainSlider.setBounds (sliderRow.removeFromLeft (sliderWidth).reduced (5));
 
     // Chain mix row - VCA / VCF / NOISE knobs

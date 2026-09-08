@@ -39,8 +39,8 @@ private:
 
     RotarySliderLook rotaryLook;
 
-    juce::Slider speedSlider, depthSlider, biasSlider, gainSlider;
-    juce::Label speedLabel, depthLabel, biasLabel, gainLabel;
+    juce::Slider speedSlider, depthSlider, sweepOffsetSlider, gainSlider;
+    juce::Label speedLabel, depthLabel, sweepOffsetLabel, gainLabel;
 
     juce::Slider vcaMixSlider, vcfMixSlider, noiseLevelSlider;
     juce::Label vcaMixLabel, vcfMixLabel, noiseLevelLabel;
@@ -54,7 +54,7 @@ private:
 
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> speedAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> depthAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> biasAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> sweepOffsetAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> gainAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vcaMixAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vcfMixAttachment;

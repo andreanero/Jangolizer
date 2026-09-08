@@ -44,7 +44,7 @@ TEST (PluginProcessorHeadlessTest, ParameterLayoutHasExpectedDefaults)
 
     EXPECT_FLOAT_EQ (*processor.apvts.getRawParameterValue ("SPEED"), 5.0f);
     EXPECT_FLOAT_EQ (*processor.apvts.getRawParameterValue ("DEPTH"), 0.7f);
-    EXPECT_NEAR (*processor.apvts.getRawParameterValue ("BIAS"), 0.0f, 1.0e-6f);
+    EXPECT_NEAR (*processor.apvts.getRawParameterValue ("SWEEP_OFFSET"), 0.0f, 1.0e-6f);
     EXPECT_FLOAT_EQ (*processor.apvts.getRawParameterValue ("GAIN"), 1.0f);
     EXPECT_EQ (static_cast<int> (*processor.apvts.getRawParameterValue ("WAVE")), 1); // Triangle
     EXPECT_FLOAT_EQ (*processor.apvts.getRawParameterValue ("VCA_MIX"), 1.0f);

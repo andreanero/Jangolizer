@@ -57,7 +57,7 @@ private:
 
     juce::LinearSmoothedValue<float> smoothedSpeed;
     juce::LinearSmoothedValue<float> smoothedDepth;
-    juce::LinearSmoothedValue<float> smoothedBias;
+    juce::LinearSmoothedValue<float> smoothedSweepOffset;
     juce::LinearSmoothedValue<float> smoothedGain;
     juce::LinearSmoothedValue<float> smoothedVcaMix;
     juce::LinearSmoothedValue<float> smoothedVcfMix;
