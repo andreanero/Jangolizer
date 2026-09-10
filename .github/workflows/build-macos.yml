@@ -1,0 +1,36 @@
+ 
+name: Build macOS Standalone
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Set up CMake
+      uses: jvm-actions/setup-cmake@v1
+
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build Standalone
+      run: |
+        cmake --build build --config Release -j$(sysctl -n hw.ncpu)
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Jangolizer-macOS-Standalone
+        path: build/Jangolizer_artefacts/Release/
