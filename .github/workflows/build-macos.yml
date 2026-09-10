@@ -1,4 +1,3 @@
- 
 name: Build macOS Standalone
 
 on:
@@ -11,26 +10,27 @@ jobs:
     runs-on: macos-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-    - name: Set up CMake
-      uses: jvm-actions/setup-cmake@v1
+      - name: Install Dependencies
+        run: |
+          brew install cmake ninja
 
-    - name: Configure CMake
-      run: |
-        mkdir build
-        cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release
+      - name: Configure CMake
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -G Ninja
 
-    - name: Build Standalone
-      run: |
-        cmake --build build --config Release -j$(sysctl -n hw.ncpu)
+      - name: Build Standalone
+        run: |
+          cmake --build build --config Release -j$(sysctl -n hw.ncpu)
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: Jangolizer-macOS-Standalone
-        path: build/Jangolizer_artefacts/Release/
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jangolizer-macOS-Standalone
+          path: build/Jangolizer_artefacts/Release/
