@@ -1,36 +1,41 @@
 name: Build macOS Standalone
-
+ 
 on:
   push:
     branches: [ main, master ]
   workflow_dispatch:
-
+ 
 jobs:
   build-macos:
     runs-on: macos-latest
-
+ 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+ 
+      - name: Install build tools
+        run: brew install cmake ninja
+ 
+      - name: Cache CPM sources
+        uses: actions/cache@v4
         with:
-          submodules: recursive
-
-      - name: Install Dependencies
-        run: |
-          brew install cmake ninja
-
+          path: ~/Library/Caches/CPM
+          key: cpm-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'test/CMakeLists.txt') }}
+ 
       - name: Configure CMake
+        env:
+          CPM_SOURCE_CACHE: ~/Library/Caches/CPM
         run: |
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -G Ninja
-
+          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release
+ 
       - name: Build Standalone
-        run: |
-          cmake --build build --config Release -j$(sysctl -n hw.ncpu)
-
+        run: cmake --build build --config Release -j$(sysctl -n hw.ncpu)
+ 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Jangolizer-macOS-Standalone
-          path: build/Jangolizer_artefacts/Release/
+          path: build/JangolizerPlugin_artefacts/Release/
+ 
