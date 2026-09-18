@@ -69,6 +69,8 @@ juce_add_plugin(JangolizerPlugin
     VST3_AUTO_MANIFEST FALSE
     MICROPHONE_PERMISSION_ENABLED TRUE
     MICROPHONE_PERMISSION_TEXT "Jangolizer needs microphone access to process live audio input."
+    ICON_BIG "${CMAKE_CURRENT_SOURCE_DIR}/Source/Resources/AppIcon.jpg"
+    ICON_SMALL "${CMAKE_CURRENT_SOURCE_DIR}/Source/Resources/AppIcon.jpg"
 )
 
 target_sources(JangolizerPlugin PRIVATE ${SharedSources})
@@ -76,7 +78,7 @@ target_sources(JangolizerPlugin PRIVATE ${SharedSources})
 if (NOT ELK_HEADLESS_BUILD)
     juce_add_binary_data(JangolizerBinaryData
         SOURCES
-            Source/Resources/background.png
+            Source/Resources/background.jpg
     )
     target_link_libraries(JangolizerPlugin PRIVATE JangolizerBinaryData)
 endif()

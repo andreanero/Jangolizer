@@ -6,9 +6,11 @@ This document provides guidance for developers working on the Jangolizer plugin.
 
 ### Signal Flow
 
-The VCA stage processes the actual entry signal; the VCF stage instead
-processes an internally generated noise source, and the result is added
-(not crossfaded) on top of the VCA'd entry signal as a drone layer:
+The VCA stage and the VCF stage both process the actual entry signal;
+the VCF's own independent twin filter processes an internally generated
+noise source instead, and the noise result is added (not crossfaded) on
+top of the VCA'd/VCF'd entry signal as a drone layer, followed by a
+fixed feedback delay and a final safety soft-clip:
 
 ```
 Audio Input
@@ -19,21 +21,26 @@ Audio Input
     ↓
 [VCA Stage: Multiply by LFO, blend via VCA_MIX]
     ↓
+[VCF Stage: LFO-swept resonant bandpass on the entry signal itself
+ (auto-wah), blend dry/filtered via VCF_MIX]
+    ↓
     +──────────────────────────────────────────────┐
     ↓                                               ↑
-Audio Output                          [× NOISE_LEVEL, added in]
-                                                     ↑
-                          [VCF Stage: white noise lightly colored
-                           (leaky integrator), driven into a two-stage
-                           fuzz distortion (tanh + hard clip), then
-                           through an LFO-cutoff resonant bandpass
-                           filter, blend raw↔filtered noise via VCF_MIX]
+[Feedback Delay (~0.35s, fixed, always on)]   [× NOISE_LEVEL, added in]
+    ↓                                               ↑
+[Final Soft-Clip (tanh)]              [Noise VCF: white noise lightly
+    ↓                                  colored (leaky integrator),
+Audio Output                           driven into a two-stage fuzz
+                                        distortion (tanh + hard clip),
+                                        then through its own LFO-cutoff
+                                        resonant bandpass filter, blend
+                                        raw↔filtered noise via VCF_MIX]
 
 Parallel to audio path:
 [LFO Generator (PolyBLEP)]
     ├─→ Apply Speed (frequency)
     ├─→ Apply Depth (amplitude scaling)
-    └─→ Apply Bias (DC offset)
+    └─→ Apply Sweep Offset (DC offset)
 ```
 
 The noise generator, not the entry signal, is what feeds the noise
@@ -80,14 +87,21 @@ The heart of the plugin. Inherits from `juce::AudioProcessor`.
 1. Read smoothed parameter values
 2. For each sample:
    - Advance LFO oscillator
-   - Compute modulation signal (LFO × Depth + Bias)
+   - Compute modulation signal (LFO × Depth + Sweep Offset)
    - Apply input gain + saturation
    - Apply VCA stage to the entry signal (blend via VCA_MIX)
    - Generate noise, lightly color it and drive it through a two-stage
-     fuzz distortion, run it through its own LFO-cutoff resonant
-     bandpass filter, blend raw↔filtered noise via VCF_MIX, then add
-     the result to the entry signal scaled by NOISE_LEVEL (additive,
-     not a crossfade)
+     fuzz distortion
+3. Once per block: derive filter cutoff from the block's final
+   modulation value, update both the signal filter and the noise
+   filter's IIR coefficients
+4. For each sample again:
+   - Run the entry signal through the LFO-swept resonant bandpass
+     filter (auto-wah), blend dry/filtered via VCF_MIX
+   - Run the noise through its own resonant bandpass filter, blend
+     raw↔filtered via VCF_MIX, then add the result to the entry signal
+     scaled by NOISE_LEVEL (additive, not a crossfade)
+   - Apply the fixed feedback delay and the final safety soft-clip
 
 ### 3. **PluginEditor.h / PluginEditor.cpp** (Desktop Only)
 Conditional compilation: **Only compiled when `ELK_HEADLESS=0`**
@@ -96,15 +110,21 @@ Custom dark/industrial editor (`JangolizerAudioProcessorEditor`), not the generi
 JUCE editor:
 - `RotarySliderLook` — custom `LookAndFeel_V4` for the rotary knobs
 - `setupSlider()` / `setupComboBox()` — shared styling helpers for each control
-- Four rotary knobs (SPEED, DEPTH, BIAS, GAIN), WAVEFORM/MODE combo boxes, and a
-  BYPASS toggle, all bound to `apvts` via `SliderAttachment` / `ComboBoxAttachment`
-  / `ButtonAttachment`
-- `backgroundImage` — static owl-eyes artwork loaded from `BinaryData::background_png`
-  (built from `Source/Resources/background.png` via `juce_add_binary_data`), drawn full-bleed
+- Seven rotary knobs — GAIN centred at top, SPEED/DEPTH/SWEEP OFFSET stacked in a
+  right-hand column, VCA MIX/VCF MIX/NOISE LEVEL in a row below GAIN — a WAVEFORM
+  combo box, and a BYPASS toggle, all bound to `apvts` via `SliderAttachment` /
+  `ComboBoxAttachment` / `ButtonAttachment`
+- `backgroundImage` — static black-cat/soundwave artwork loaded from `BinaryData::background_jpg`
+  (built from `Source/Resources/background.jpg` via `juce_add_binary_data`), drawn full-bleed
   in `paint()`
 - `drawIndustrialBackground()` — procedural fallback background, only used if the
   binary image fails to load
 - Layout lives in `resized()`; colours/fonts are set per-control in the `setup*()` helpers
+
+**App icon:** the Standalone target's window/taskbar/dock icon is `Source/Resources/AppIcon.jpg`,
+wired via `ICON_BIG`/`ICON_SMALL` on the `juce_add_plugin()` call in the root `CMakeLists.txt`
+(not `juce_add_binary_data` — JUCE bakes these straight into the platform icon resource, so no
+`BinaryData::` symbol is generated for it).
 
 ## Building & Testing
 

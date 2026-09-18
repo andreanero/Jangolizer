@@ -1,0 +1,37 @@
+name: Build Windows Standalone
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache CPM sources
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}\.cpm-cache
+          key: cpm-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'test/CMakeLists.txt') }}
+
+      - name: Configure CMake
+        env:
+          CPM_SOURCE_CACHE: ${{ github.workspace }}\.cpm-cache
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Standalone
+        run: cmake --build build --config Release --parallel
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jangolizer-Windows-Standalone
+          path: build/JangolizerPlugin_artefacts/Release/
