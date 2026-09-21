@@ -54,7 +54,7 @@ JangolizerAudioProcessorEditor::JangolizerAudioProcessorEditor (JangolizerAudioP
 {
     setLookAndFeel (&rotaryLook);
 
-    backgroundImage = juce::ImageCache::getFromMemory (BinaryData::background_jpg, BinaryData::background_jpgSize);
+    backgroundImage = juce::ImageCache::getFromMemory (BinaryData::background_png, BinaryData::background_pngSize);
 
     // Setup sliders
     setupSlider (speedSlider, speedLabel, "SPEED");
@@ -155,12 +155,7 @@ void JangolizerAudioProcessorEditor::setupComboBox (juce::ComboBox& box, juce::L
 void JangolizerAudioProcessorEditor::paint (juce::Graphics& g)
 {
     if (backgroundImage.isValid())
-        // Cover the whole editor, cropping only from the right (into the wave
-        // pattern) rather than centring the crop, so the top/bottom are always
-        // fully covered and the cat on the left is never cut off.
-        g.drawImage (backgroundImage, getLocalBounds().toFloat(),
-                     juce::RectanglePlacement (juce::RectanglePlacement::fillDestination
-                                                | juce::RectanglePlacement::xLeft));
+        g.drawImage (backgroundImage, getLocalBounds().toFloat(), juce::RectanglePlacement::fillDestination);
     else
         drawIndustrialBackground (g);
 
@@ -209,26 +204,17 @@ void JangolizerAudioProcessorEditor::resized()
     area.removeFromTop (36);
     area.removeFromTop (260);
 
-    // Knob block - reserved above the waveform selector/bypass row, so the right
-    // column (Speed/Depth/Sweep) never extends lower than the Gain/mix knobs do
-    auto knobsBlock = area.removeFromTop (300);
+    // Top row - Sliders
+    auto sliderRow = area.removeFromTop (160);
+    auto sliderWidth = sliderRow.getWidth() / 4;
 
-    // Right column - Speed / Depth / Sweep Offset, stacked
-    auto rightColumn = knobsBlock.removeFromRight (160);
-    auto rightSlotHeight = rightColumn.getHeight() / 3;
-
-    speedSlider.setBounds (rightColumn.removeFromTop (rightSlotHeight).reduced (5));
-    depthSlider.setBounds (rightColumn.removeFromTop (rightSlotHeight).reduced (5));
-    sweepOffsetSlider.setBounds (rightColumn.removeFromTop (rightSlotHeight).reduced (5));
-
-    // Top row - Gain knob, centred (kept clear of the cat silhouette on the left
-    // of the background artwork)
-    auto gainRow = knobsBlock.removeFromTop (160);
-    gainRow.removeFromLeft (300);
-    gainSlider.setBounds (gainRow.withSizeKeepingCentre (150, 150));
+    speedSlider.setBounds (sliderRow.removeFromLeft (sliderWidth).reduced (5));
+    depthSlider.setBounds (sliderRow.removeFromLeft (sliderWidth).reduced (5));
+    sweepOffsetSlider.setBounds (sliderRow.removeFromLeft (sliderWidth).reduced (5));
+    gainSlider.setBounds (sliderRow.removeFromLeft (sliderWidth).reduced (5));
 
     // Chain mix row - VCA / VCF / NOISE knobs
-    auto mixRow = knobsBlock;
+    auto mixRow = area.removeFromTop (120);
     auto mixWidth = mixRow.getWidth() / 3;
 
     vcaMixSlider.setBounds (mixRow.removeFromLeft (mixWidth).reduced (5));
