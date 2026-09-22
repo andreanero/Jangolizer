@@ -1,0 +1,57 @@
+name: Build Linux Standalone
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build tools and JUCE Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ninja-build \
+            libasound2-dev \
+            libx11-dev \
+            libxcomposite-dev \
+            libxcursor-dev \
+            libxext-dev \
+            libxinerama-dev \
+            libxrandr-dev \
+            libxrender-dev \
+            libglu1-mesa-dev \
+            mesa-common-dev \
+            libfreetype6-dev \
+            libfontconfig1-dev \
+            libcurl4-openssl-dev \
+            libwebkit2gtk-4.1-dev
+
+      - name: Cache CPM sources
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/CPM
+          key: cpm-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'test/CMakeLists.txt') }}
+
+      - name: Configure CMake
+        env:
+          CPM_SOURCE_CACHE: ~/.cache/CPM
+        run: |
+          mkdir build
+          cd build
+          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Standalone
+        run: cmake --build build --config Release -j$(nproc)
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jangolizer-Linux-Standalone
+          path: build/JangolizerPlugin_artefacts/Release/

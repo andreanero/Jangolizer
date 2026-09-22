@@ -7,18 +7,19 @@
 ![JUCE](https://img.shields.io/badge/JUCE-8.0.12-orange.svg)
 [![Buy Me a Coffee](https://img.shields.io/badge/PayPal-Buy%20me%20a%20coffee-00457C.svg?logo=paypal)](https://paypal.me/andreaveronese)
 
-Jangolizer is a compact, performance-minded audio effect inspired by circuit‑bent hardware. Mono in, mono out (single-channel guitar/instrument source, matching the Elk Audio OS hardware target). It provides an anti‑aliased LFO engine, soft saturation/VCA stage, an LFO‑swept, resonant bandpass filter (VCF) applied to the entry signal itself (auto‑wah style), and an internal noise generator — lightly colored, driven into a two-stage fuzz distortion, and shaped by its own resonant, mid-forward bandpass filter for a fat, harsh, dissonant wall of fuzzed guitar-noise — whose output surges on top of the entry signal. A fixed feedback delay and a final soft-clip add a dark, cavernous sustain suited to industrial/post‑punk/no-wave playing. The desktop build includes a stylized GUI; the embedded build for Elk Audio OS is headless and parameter-only.
+Jangolizer is a compact, performance-minded audio effect inspired by circuit‑bent hardware. It provides an anti‑aliased LFO engine, soft saturation/VCA stage, an LFO‑swept, resonant bandpass filter (VCF) applied to the entry signal itself (auto‑wah style), and an internal noise generator — lightly colored, driven into a two-stage fuzz distortion, and shaped by its own resonant, mid-forward bandpass filter for a fat, harsh, dissonant wall of fuzzed guitar-noise — whose output surges on top of the entry signal. A fixed feedback delay and a final soft-clip add a dark, cavernous sustain suited to industrial/post‑punk/no-wave playing. The desktop build is stereo, with each channel processed through fully independent state (no L/R mixing/crosstalk); the embedded build for Elk Audio OS matches that hardware's single-channel guitar/instrument input and is mono in/out, headless, and parameter-only.
 
 </div>
 
 ## UI
 
-Dark, industrial look with orange accents, static owl-eyes background artwork (`Source/Resources/background.png`, compiled in via JUCE BinaryData):
+Dark, industrial look with orange accents, static black-cat/soundwave background artwork (`Source/Resources/background.jpg`, compiled in via JUCE BinaryData):
 - Title banner ("JANGOLIZER") over the background artwork.
-- Four rotary knobs — SPEED, DEPTH, BIAS, GAIN — in a row.
-- WAVEFORM selector plus VCA_MIX, VCF_MIX, NOISE_LEVEL knobs below the main row.
+- GAIN knob centred at top; SPEED, DEPTH, SWEEP OFFSET stacked in a column on the right.
+- WAVEFORM selector plus VCA_MIX, VCF_MIX, NOISE_LEVEL knobs below GAIN.
 - BYPASS toggle below the selectors — on by default every time the plugin loads.
 - Headless (Elk Audio OS) builds omit the UI entirely; only the parameters remain.
+- Standalone app uses `Source/Resources/AppIcon.jpg` (amber cat-eye) as its window/taskbar/dock icon.
 
 ## ✨ Highlights
 
@@ -66,7 +67,7 @@ cmake --build --preset elk-headless
 ## Project Layout
 
 - Source/: DSP and UI code (PluginProcessor, PluginEditor, PolyBLEP core)
-- Source/Resources/: UI assets (background.png), compiled in via JUCE BinaryData
+- Source/Resources/: UI assets (background.jpg, compiled in via JUCE BinaryData) and AppIcon.jpg (Standalone app icon, wired via `ICON_BIG`/`ICON_SMALL` in CMakeLists.txt)
 - cmake/: build helpers and CPM integration
 - libs/: external dependencies (gitignored)
 
@@ -74,7 +75,7 @@ cmake --build --preset elk-headless
 
 - SPEED: 0.1 – 400 Hz (default 5 Hz) — LFO rate driving the VCA tremolo and the VCF cutoff sweep
 - DEPTH: 0.0 – 1.0 (default 0.7) — modulation depth for the VCA/VCF LFO
-- BIAS: -1.0 – 1.0 (default 0.0)
+- SWEEP OFFSET: -1.0 – 1.0 (default 0.0) — DC offset added to the LFO modulation before it drives the VCA/VCF sweep
 - GAIN: 1.0 – 10.0 (default 1.0)
 - WAVEFORM: Square / Triangle / Saw / InvSaw / Sine
 - VCA_MIX: 0.0 – 1.0 — dry/wet blend of the tremolo stage against the saturated entry signal
